@@ -1,0 +1,21 @@
+# Changelog
+
+All notable project changes should be recorded in this file.
+
+This repo uses a simple rule: when code changes, documentation changes with it. Add new entries to the `Unreleased` section while work is in progress, then cut a dated section when you want to snapshot a release or milestone.
+
+## Unreleased
+
+- Documentation workflow established so README and changelog stay in sync with future code changes.
+
+## 2026-04-05
+
+### Added
+
+- Initial RMS frontend scaffold with landing page, auth routes, protected dashboard shell, and reusable layout structure.
+- Project documentation for setup, architecture, routes, and maintenance workflow.
+
+### Notes
+
+- Authentication currently uses mock frontend state stored in local storage.
+- Dashboard metrics and activity are powered by mock data.

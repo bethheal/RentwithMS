@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Slab:wght@700;800&family=Zilla+Slab+Highlight:wght@700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Segoe UI", sans-serif;
+  --font-display: "Roboto Slab", Georgia, serif;
+  --font-hero: "Zilla Slab Highlight", "Roboto Slab", Georgia, serif;
+
+  --color-brand-50: #edf2ff;
+  --color-brand-100: #dbe5ff;
+  --color-brand-200: #b2c4ff;
+  --color-brand-300: #7f9dfd;
+  --color-brand-500: #395de1;
+  --color-brand-700: #21378f;
+  --color-brand-800: #1e327f;
+  --color-brand-900: #1f2c5c;
+  --color-brand-950: #12183a;
+  --color-hero-ink: #1F2C5C;
+  --color-ivory: #f6f5f1;
+  --color-ink-900: #111827;
+  --color-ink-700: #334155;
+  --color-ink-500: #64748b;
+
+  --shadow-soft: 0 24px 60px rgba(15, 23, 42, 0.12);
+  --shadow-hero: 0 28px 60px rgba(18, 24, 58, 0.25);
+
+  --animate-float-soft: float-soft 6s ease-in-out infinite;
+  --animate-pulse-soft: pulse-soft 3.2s ease-in-out infinite;
+}
+
+@keyframes float-soft {
+  0%, 100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+
+  50% {
+    transform: scale(1.02);
+    opacity: 1;
+  }
+}
+
+@keyframes about-panel-switch {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-ivory text-ink-900 antialiased;
+    margin: 0;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  ::selection {
+    background: #21378f;
+    color: #ffffff;
+  }
+}
