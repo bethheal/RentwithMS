@@ -7,6 +7,7 @@ This repo uses a simple rule: when code changes, documentation changes with it. 
 ## Unreleased
 
 - Documentation workflow established so README and changelog stay in sync with future code changes.
+- Refined the About and Mission section spacing and removed the bottom divider for a cleaner presentation.
 
 ## 2026-04-05
 

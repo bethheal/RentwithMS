@@ -15,9 +15,9 @@ export default function AboutMissionSection({ mission }) {
   const visionTab = mission.tabs.find((tab) => tab.id === 'vision') ?? mission.tabs[1]
 
   return (
-    <section id="about" className="bg-white py-1 sm:py-10">
+    <section id="about" className="bg-white py-8 sm:py-10">
       <Container className="!max-w-none !px-0">
-        <div className="relative bg-white px-5 py-9 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
+        <div className="relative bg-white px-5  sm:px-8 sm:py-10 lg:px-12 lg:py-1">
           <img
             src={aboutBackground}
             alt=""
@@ -155,7 +155,7 @@ export default function AboutMissionSection({ mission }) {
                 })}
               </div>
 
-              <div className="mt-12 h-px w-full bg-slate-300" />
+              {/* <div className="mt-12 h-px w-full bg-slate-300" /> */}
             </div>
           </Reveal>
         </div>
