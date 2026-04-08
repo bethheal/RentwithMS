@@ -1,18 +1,44 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import PrimaryButton from "../../components/common/PrimaryButton.jsx";
-import TextInput from "../../components/common/TextInput.jsx";
+import { useEffect, useState } from "react";
+import { ShieldCheck, Sparkles } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import AuthFormField from "../../components/auth/AuthFormField.jsx";
+import AuthModeShell from "../../components/auth/AuthModeShell.jsx";
+import AuthRoleSelectionStep from "../../components/auth/AuthRoleSelectionStep.jsx";
+import {
+  authRoleContent,
+  normalizeAuthRole,
+} from "../../components/auth/authRoleConfig.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 
-const initialState = {
-  email: "demo@MS.app",
-  password: "password123",
+const emptyState = {
+  email: "",
+  password: "",
 };
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [formValues, setFormValues] = useState(initialState);
+  const [searchParams] = useSearchParams();
+  const roleKey = normalizeAuthRole(searchParams.get("role"));
+  const [formValues, setFormValues] = useState(emptyState);
+
+  useEffect(() => {
+    if (!roleKey) {
+      setFormValues(emptyState);
+      return;
+    }
+
+    setFormValues({
+      email: authRoleContent[roleKey].defaultEmail,
+      password: "password123",
+    });
+  }, [roleKey]);
+
+  if (!roleKey) {
+    return <AuthRoleSelectionStep mode="login" />;
+  }
+
+  const roleConfig = authRoleContent[roleKey];
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -22,54 +48,99 @@ export default function LoginPage() {
     }));
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    login(formValues);
+  const handleCompleteLogin = ({ email }) => {
+    login({
+      email: email || roleConfig.defaultEmail,
+      role: roleConfig.label,
+    });
+
     navigate("/dashboard");
   };
 
+  const handleGoogleLogin = () => {
+    handleCompleteLogin({
+      email: roleConfig.googleLoginEmail,
+    });
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    handleCompleteLogin(formValues);
+  };
+
   return (
-    <div className="mx-auto flex h-full max-w-xl flex-col justify-center">
-      <div className="space-y-4">
-        <span className="inline-flex items-center rounded-full border border-brand-900/15 bg-white px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.35em] text-brand-700">
-          Login
-        </span>
-        <h2 className="font-display text-4xl font-bold tracking-[-0.05em] text-slate-900">
-          Sign in to continue.
-        </h2>
-        <p className="text-sm leading-7 text-slate-600 sm:text-base">
-          This form uses controlled inputs today. If validation or field count
-          grows, moving it to `react-hook-form` would be a strong next step.
+    <AuthModeShell
+      backAriaLabel="Back to role selection"
+      backTo="/login"
+      description={`Secure access to your ${roleConfig.label.toLowerCase()} workspace. Continue with Google or use your email credentials below.`}
+      formId="login-form"
+      googleLabel="Login with Google"
+      modeLabel="Log In"
+      onGoogleAction={handleGoogleLogin}
+      roleKey={roleKey}
+      roleLabel={roleConfig.label}
+      submitLabel="Log In"
+      footer={
+        <p className="text-sm text-slate-500">
+          New to RMS?{" "}
+          <Link
+            to={`/signup?role=${roleKey}`}
+            className="font-semibold text-[#18399F] underline underline-offset-4"
+          >
+            Create a {roleConfig.label.toLowerCase()} account
+          </Link>
         </p>
+      }
+    >
+      <div className="mb-6 rounded-[1.4rem] border border-[#E2EAFA] bg-[linear-gradient(180deg,#F8FAFF_0%,#FFFFFF_100%)] p-4 shadow-[0_18px_40px_rgba(24,57,159,0.06)]">
+        <div className="flex items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-[1rem] bg-[#18399F] text-white shadow-[0_16px_28px_rgba(24,57,159,0.22)]">
+            <ShieldCheck className="size-5" />
+          </span>
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-[#18399F]">
+              Private workspace access
+            </p>
+            <p className="text-sm leading-6 text-slate-500">
+              Sign in as a {roleConfig.label.toLowerCase()} and continue where
+              you left off with your saved activity and workspace settings.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-        <TextInput
-          label="Email address"
+      <form id="login-form" onSubmit={handleSubmit} className="space-y-5">
+        <AuthFormField
+          label="Email*"
           name="email"
           type="email"
+          placeholder="name@eg.com"
           value={formValues.email}
           onChange={handleChange}
-          helperText="Use any email to enter the mocked dashboard."
         />
-        <TextInput
-          label="Password"
+
+        <AuthFormField
+          label="Password*"
           name="password"
           type="password"
+          placeholder="Min. 8 Character"
           value={formValues.password}
           onChange={handleChange}
         />
-        <PrimaryButton type="submit" variant="brand" className="w-full">
-          Sign In
-        </PrimaryButton>
-      </form>
 
-      <p className="mt-6 text-sm text-slate-500">
-        Need an account?{" "}
-        <Link to="/signup" className="font-semibold text-brand-700">
-          Create one
-        </Link>
-      </p>
-    </div>
+        <div className="flex items-center justify-between gap-4 rounded-[1.15rem] border border-[#E6EEFF] bg-[#F9FBFF] px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <Sparkles className="size-4 text-[#18399F]" />
+            <span>Demo password is already filled for quick access.</span>
+          </div>
+          <button
+            type="button"
+            className="text-sm font-semibold text-[#18399F] transition-colors duration-300 hover:text-[#102A74]"
+          >
+            Forgot?
+          </button>
+        </div>
+      </form>
+    </AuthModeShell>
   );
 }

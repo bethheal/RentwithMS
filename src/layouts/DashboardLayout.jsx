@@ -8,6 +8,12 @@ import { useAuth } from '../context/AuthContext.jsx'
 export default function DashboardLayout() {
   const { openSidebar } = useAppShell()
   const { user } = useAuth()
+  const isTenant = user?.role?.toLowerCase() === 'tenant'
+  const isLandlord = user?.role?.toLowerCase() === 'landlord'
+
+  if (isTenant || isLandlord) {
+    return <Outlet />
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-50">

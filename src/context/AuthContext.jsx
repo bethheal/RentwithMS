@@ -23,12 +23,12 @@ export function AuthProvider({ children }) {
     window.localStorage.removeItem(STORAGE_KEY);
   }, [isHydrated, user]);
 
-  const login = ({ email }) => {
+  const login = ({ email, role = "Landlord" }) => {
     const nextUser = {
       id: "usr_demo_01",
       name: email.split("@")[0].replace(/[._-]/g, " "),
       email,
-      role: "Landlord",
+      role,
     };
 
     setUser(nextUser);

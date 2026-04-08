@@ -145,8 +145,8 @@ const landingPageContent = {
       },
     ],
     actions: [
-      { label: "Login As Tenant", to: "/login", variant: "ghost" },
-      { label: "Login As Landlord", to: "/login", variant: "light" },
+      { label: "Login As Tenant", to: "/login?role=tenant", variant: "ghost" },
+      { label: "Login As Landlord", to: "/login?role=landlord", variant: "light" },
     ],
   },
   pricing: {

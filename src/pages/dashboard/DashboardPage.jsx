@@ -1,4 +1,6 @@
 import { ArrowUpRight, CircleCheckBig } from 'lucide-react'
+import LandlordDashboardView from '../../components/dashboard/LandlordDashboardView.jsx'
+import TenantDashboardView from '../../components/dashboard/TenantDashboardView.jsx'
 import Container from '../../components/common/Container.jsx'
 import Reveal from '../../components/common/Reveal.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
@@ -6,7 +8,17 @@ import { dashboardResponse } from '../../data/mockApi/dashboard.js'
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const isTenant = user?.role?.toLowerCase() === 'tenant'
+  const isLandlord = user?.role?.toLowerCase() === 'landlord'
   const { activity, stats, tasks } = dashboardResponse.data
+
+  if (isTenant) {
+    return <TenantDashboardView />
+  }
+
+  if (isLandlord) {
+    return <LandlordDashboardView />
+  }
 
   return (
     <Container className="space-y-8">
