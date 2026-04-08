@@ -1,32 +1,32 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import PrimaryButton from '../../components/common/PrimaryButton.jsx'
-import TextInput from '../../components/common/TextInput.jsx'
-import { useAuth } from '../../context/AuthContext.jsx'
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import PrimaryButton from "../../components/common/PrimaryButton.jsx";
+import TextInput from "../../components/common/TextInput.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 const initialState = {
-  email: 'demo@rms.app',
-  password: 'password123',
-}
+  email: "demo@MS.app",
+  password: "password123",
+};
 
 export default function LoginPage() {
-  const navigate = useNavigate()
-  const { login } = useAuth()
-  const [formValues, setFormValues] = useState(initialState)
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [formValues, setFormValues] = useState(initialState);
 
   const handleChange = (event) => {
-    const { name, value } = event.target
+    const { name, value } = event.target;
     setFormValues((current) => ({
       ...current,
       [name]: value,
-    }))
-  }
+    }));
+  };
 
   const handleSubmit = (event) => {
-    event.preventDefault()
-    login(formValues)
-    navigate('/dashboard')
-  }
+    event.preventDefault();
+    login(formValues);
+    navigate("/dashboard");
+  };
 
   return (
     <div className="mx-auto flex h-full max-w-xl flex-col justify-center">
@@ -65,11 +65,11 @@ export default function LoginPage() {
       </form>
 
       <p className="mt-6 text-sm text-slate-500">
-        Need an account?{' '}
+        Need an account?{" "}
         <Link to="/signup" className="font-semibold text-brand-700">
           Create one
         </Link>
       </p>
     </div>
-  )
+  );
 }

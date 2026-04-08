@@ -1,39 +1,39 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import PrimaryButton from '../../components/common/PrimaryButton.jsx'
-import TextInput from '../../components/common/TextInput.jsx'
-import { useAuth } from '../../context/AuthContext.jsx'
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import PrimaryButton from "../../components/common/PrimaryButton.jsx";
+import TextInput from "../../components/common/TextInput.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 const initialState = {
-  fullName: '',
-  email: '',
-  role: 'Landlord',
-}
+  fullName: "",
+  email: "",
+  role: "Landlord",
+};
 
 export default function SignupPage() {
-  const navigate = useNavigate()
-  const { register } = useAuth()
-  const [formValues, setFormValues] = useState(initialState)
+  const navigate = useNavigate();
+  const { register } = useAuth();
+  const [formValues, setFormValues] = useState(initialState);
 
   const handleChange = (event) => {
-    const { name, value } = event.target
+    const { name, value } = event.target;
     setFormValues((current) => ({
       ...current,
       [name]: value,
-    }))
-  }
+    }));
+  };
 
   const handleSubmit = (event) => {
-    event.preventDefault()
+    event.preventDefault();
 
     register({
       ...formValues,
-      fullName: formValues.fullName || 'New User',
-      email: formValues.email || 'newuser@rms.app',
-    })
+      fullName: formValues.fullName || "New User",
+      email: formValues.email || "newuser@MS.app",
+    });
 
-    navigate('/dashboard')
-  }
+    navigate("/dashboard");
+  };
 
   return (
     <div className="mx-auto flex h-full max-w-xl flex-col justify-center">
@@ -67,7 +67,9 @@ export default function SignupPage() {
           placeholder="you@example.com"
         />
         <label className="flex flex-col gap-2">
-          <span className="text-sm font-semibold text-slate-700">Account role</span>
+          <span className="text-sm font-semibold text-slate-700">
+            Account role
+          </span>
           <select
             name="role"
             value={formValues.role}
@@ -85,11 +87,11 @@ export default function SignupPage() {
       </form>
 
       <p className="mt-6 text-sm text-slate-500">
-        Already have an account?{' '}
+        Already have an account?{" "}
         <Link to="/login" className="font-semibold text-brand-700">
           Sign in
         </Link>
       </p>
     </div>
-  )
+  );
 }

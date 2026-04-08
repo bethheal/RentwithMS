@@ -3,6 +3,7 @@ export const marketingNavigation = {
     { label: 'Home', href: '#home' },
     { label: 'About', href: '#about' },
     { label: 'Features', href: '#features' },
+    { label: 'Pricing', href: '#pricing' },
   ],
   right: [
     { label: 'Blog', href: '#blog' },

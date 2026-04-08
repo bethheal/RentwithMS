@@ -1,33 +1,76 @@
-import { Clock3 } from 'lucide-react'
-import { classNames } from '../../utils/classNames.js'
+import { Play } from 'lucide-react'
 
-export default function BlogListCard({ isActive, onSelect, post }) {
+const contentTypeMap = {
+  blog: {
+    actionLabel: 'Continue Reading',
+  },
+  video: {
+    actionLabel: 'Watch Video',
+  },
+  podcast: {
+    actionLabel: 'Listen',
+  },
+}
+
+export default function BlogListCard({ post, contentType = 'blog', actionLabel }) {
+  const config = contentTypeMap[contentType] ?? contentTypeMap.blog
+  const isVideo = contentType === 'video'
+
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(post.id)}
-      className={classNames(
-        'flex w-full items-start justify-between gap-4 rounded-[1.5rem] border px-4 py-4 text-left transition duration-300',
-        isActive
-          ? 'border-brand-200 bg-brand-50 shadow-soft'
-          : 'border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50/50',
-      )}
-    >
-      <div className="space-y-2">
-        <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-[0.24em] text-slate-500">
-          <span>{post.category}</span>
-          <span className="h-1 w-1 rounded-full bg-slate-300" />
-          <span>{post.date}</span>
-        </div>
-        <h3 className="text-sm font-semibold text-slate-900 sm:text-base">
-          {post.title}
-        </h3>
-      </div>
+    <article className="group border-b border-slate-200/80 py-7 text-left first:pt-0 last:border-b-0 last:pb-0">
+      <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_15rem] sm:items-center sm:gap-10">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 text-[0.95rem] text-slate-500">
+            <span>{post.date}</span>
+            {post.readingTime ? (
+              <>
+                <span className="size-1 rounded-full bg-slate-300" aria-hidden="true" />
+                <span>{post.readingTime}</span>
+              </>
+            ) : null}
+          </div>
 
-      <div className="inline-flex shrink-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
-        <Clock3 className="size-4" />
-        {post.readingTime}
+          <h3 className="max-w-xl text-[1.6rem] font-semibold leading-[1.35] text-slate-900 sm:text-[1.9rem]">
+            {post.title}
+          </h3>
+
+          <a
+            href={post.href ?? '#blog'}
+            className="inline-flex w-fit text-base font-semibold text-[#18399F] underline decoration-1 underline-offset-4 transition-colors duration-300 hover:text-slate-900"
+          >
+            {actionLabel ?? config.actionLabel}
+          </a>
+        </div>
+
+        <div className="relative overflow-hidden rounded-[1.15rem] bg-slate-100 shadow-[0_14px_28px_rgba(15,23,42,0.08)] sm:justify-self-end">
+          {post.image ? (
+            <img
+              src={post.image}
+              alt={post.imageAlt ?? post.title}
+              className="aspect-[4/3] w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:w-[15rem]"
+            />
+          ) : (
+            <div
+              className="aspect-[4/3] w-full bg-[linear-gradient(135deg,#E2E8F0,#CBD5E1)] sm:w-[15rem]"
+              aria-hidden="true"
+            />
+          )}
+
+          {isVideo ? (
+            <>
+              <div
+                className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.1),rgba(15,23,42,0.5))]"
+                aria-hidden="true"
+              />
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <span className="flex size-14 items-center justify-center rounded-full bg-white/92 text-[#18399F] shadow-[0_12px_24px_rgba(15,23,42,0.2)] transition-transform duration-300 group-hover:scale-105">
+                  <Play className="ml-1 size-6 fill-current" />
+                </span>
+              </div>
+            </>
+          ) : null}
+        </div>
       </div>
-    </button>
+    </article>
   )
 }

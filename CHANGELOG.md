@@ -13,7 +13,7 @@ This repo uses a simple rule: when code changes, documentation changes with it. 
 
 ### Added
 
-- Initial RMS frontend scaffold with landing page, auth routes, protected dashboard shell, and reusable layout structure.
+- Initial MS frontend scaffold with landing page, auth routes, protected dashboard shell, and reusable layout structure.
 - Project documentation for setup, architecture, routes, and maintenance workflow.
 
 ### Notes

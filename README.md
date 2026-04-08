@@ -1,6 +1,6 @@
-# RMS Frontend
+# MS Frontend
 
-RMS is a frontend rental management experience built with React, Vite, React Router, and Tailwind CSS. The current app ships a marketing landing page, auth flows backed by local mock state, and a protected dashboard shell ready for real API integration.
+MS is a frontend rental management experience built with React, Vite, React Router, and Tailwind CSS. The current app ships a marketing landing page, auth flows backed by local mock state, and a protected dashboard shell ready for real API integration.
 
 ## What Is Included
 
@@ -56,7 +56,7 @@ npm run lint
 
 ### Demo Authentication
 
-Authentication is currently frontend-only. User data is stored in `localStorage` under `rms-auth-user`, and the auth context exposes `login`, `register`, and `logout` helpers for the demo flows.
+Authentication is currently frontend-only. User data is stored in `localStorage` under `MS-auth-user`, and the auth context exposes `login`, `register`, and `logout` helpers for the demo flows.
 
 ### Data Sources
 
