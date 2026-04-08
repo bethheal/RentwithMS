@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AuthFormField from "../../components/auth/AuthFormField.jsx";
 import AuthModeShell from "../../components/auth/AuthModeShell.jsx";
@@ -18,23 +18,22 @@ const initialState = {
 };
 
 export default function SignupPage() {
-  const navigate = useNavigate();
-  const { register } = useAuth();
   const [searchParams] = useSearchParams();
   const roleKey = normalizeAuthRole(searchParams.get("role"));
-  const [formValues, setFormValues] = useState(initialState);
-  const [formError, setFormError] = useState("");
-
-  useEffect(() => {
-    setFormValues(initialState);
-    setFormError("");
-  }, [roleKey]);
 
   if (!roleKey) {
     return <AuthRoleSelectionStep mode="signup" />;
   }
 
+  return <SignupRoleForm key={roleKey} roleKey={roleKey} />;
+}
+
+function SignupRoleForm({ roleKey }) {
+  const navigate = useNavigate();
+  const { register } = useAuth();
   const roleConfig = authRoleContent[roleKey];
+  const [formValues, setFormValues] = useState(initialState);
+  const [formError, setFormError] = useState("");
 
   const handleChange = (event) => {
     const { checked, name, type, value } = event.target;

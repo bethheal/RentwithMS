@@ -40,9 +40,12 @@ Open the local Vite URL shown in the terminal after the dev server starts.
 ```bash
 npm run dev
 npm run build
+npm start
 npm run preview
 npm run lint
 ```
+
+`npm start` serves the production `dist` build through a small Node server with SPA route fallback. This is the command to use for Render web services.
 
 ## Current App Behavior
 
@@ -106,6 +109,17 @@ Documentation is treated as part of the work, not a follow-up task.
 - Update `CHANGELOG.md` whenever code or project setup changes
 - Update this `README.md` when routes, setup steps, architecture, or scripts change
 - Review `docs/MAINTENANCE.md` before larger updates
+
+## Render Deployment
+
+For a Render web service, use:
+
+```bash
+Build Command: npm install && npm run build
+Start Command: npm start
+```
+
+The production server binds to `0.0.0.0` and uses Render's `PORT` environment variable automatically.
 
 ## Suggested Next Steps
 

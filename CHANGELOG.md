@@ -8,6 +8,7 @@ This repo uses a simple rule: when code changes, documentation changes with it. 
 
 - Documentation workflow established so README and changelog stay in sync with future code changes.
 - Refined the About and Mission section spacing and removed the bottom divider for a cleaner presentation.
+- Fixed Render deployment support by adding a production Node server that serves the built app on `0.0.0.0:$PORT` with SPA fallback routes.
 
 ## 2026-04-05
 

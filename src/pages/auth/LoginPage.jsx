@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AuthFormField from "../../components/auth/AuthFormField.jsx";
@@ -16,29 +16,25 @@ const emptyState = {
 };
 
 export default function LoginPage() {
-  const navigate = useNavigate();
-  const { login } = useAuth();
   const [searchParams] = useSearchParams();
   const roleKey = normalizeAuthRole(searchParams.get("role"));
-  const [formValues, setFormValues] = useState(emptyState);
-
-  useEffect(() => {
-    if (!roleKey) {
-      setFormValues(emptyState);
-      return;
-    }
-
-    setFormValues({
-      email: authRoleContent[roleKey].defaultEmail,
-      password: "password123",
-    });
-  }, [roleKey]);
 
   if (!roleKey) {
     return <AuthRoleSelectionStep mode="login" />;
   }
 
+  return <LoginRoleForm key={roleKey} roleKey={roleKey} />;
+}
+
+function LoginRoleForm({ roleKey }) {
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const roleConfig = authRoleContent[roleKey];
+  const [formValues, setFormValues] = useState(() => ({
+    ...emptyState,
+    email: roleConfig.defaultEmail,
+    password: "password123",
+  }));
 
   const handleChange = (event) => {
     const { name, value } = event.target;
