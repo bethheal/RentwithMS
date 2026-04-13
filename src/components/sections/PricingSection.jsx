@@ -68,12 +68,7 @@ export default function PricingSection({ pricing, cta }) {
             delay={70}
             className="relative z-10 mt-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
           >
-            <div className="inline-flex max-w-3xl rounded-[1.2rem] border border-[#DCE7FF] bg-white px-4 py-3 text-sm font-medium leading-6 text-slate-600 shadow-[0_12px_30px_rgba(24,57,159,0.06)]">
-              <span className="font-semibold text-[#18399F]">
-                Landlords pay for the workspace.
-              </span>
-              <span className="ml-2">{pricing.landlordNote}</span>
-            </div>
+           
 
             <div className="flex w-fit items-center gap-3 rounded-full border border-[#DCE7FF] bg-white px-4 py-3 shadow-[0_12px_26px_rgba(24,57,159,0.06)]">
               <button

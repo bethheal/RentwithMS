@@ -92,6 +92,14 @@
     font: inherit;
   }
 
+  a,
+  button:not(:disabled),
+  input[type='checkbox'],
+  input[type='radio'],
+  summary {
+    cursor: pointer;
+  }
+
   ::selection {
     background: #21378f;
     color: #ffffff;

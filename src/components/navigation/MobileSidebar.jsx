@@ -1,8 +1,7 @@
 import { X } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock.js'
 import { useAppShell } from '../../context/AppShellContext.jsx'
-import { useAuth } from '../../context/AuthContext.jsx'
 import { marketingNavigation } from '../../data/navigation.js'
 import { classNames } from '../../utils/classNames.js'
 import BrandMark from '../common/BrandMark.jsx'
@@ -10,15 +9,7 @@ import PrimaryButton from '../common/PrimaryButton.jsx'
 
 export default function MobileSidebar() {
   const { closeSidebar, isSidebarOpen } = useAppShell()
-  const { login } = useAuth()
-  const navigate = useNavigate()
   useBodyScrollLock(isSidebarOpen)
-
-  const handleQuickTenantLogin = () => {
-    login({ email: 'mabel.tetteh@rms.app', role: 'Tenant' })
-    closeSidebar()
-    navigate('/dashboard')
-  }
 
   return (
     <div
@@ -56,19 +47,19 @@ export default function MobileSidebar() {
 
         <nav className="flex flex-col gap-4">
           {[...marketingNavigation.left, ...marketingNavigation.right].map((item) => (
-            <a
+            <Link
               key={item.label}
-              href={item.href}
+              to={item.to}
               onClick={closeSidebar}
               className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white/90 transition hover:bg-white/10"
             >
               {item.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
         <div className="mt-auto flex flex-col gap-3">
-          <PrimaryButton type="button" variant="light" onClick={handleQuickTenantLogin}>
+          <PrimaryButton to="/login" variant="light" onClick={closeSidebar}>
             Login
           </PrimaryButton>
           <PrimaryButton to="/signup" variant="light" onClick={closeSidebar}>

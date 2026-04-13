@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Play } from 'lucide-react'
 
 const contentTypeMap = {
@@ -12,9 +13,16 @@ const contentTypeMap = {
   },
 }
 
-export default function BlogListCard({ post, contentType = 'blog', actionLabel }) {
+export default function BlogListCard({
+  post,
+  contentType = 'blog',
+  actionLabel,
+  to,
+}) {
   const config = contentTypeMap[contentType] ?? contentTypeMap.blog
   const isVideo = contentType === 'video'
+  const ActionTag = to ? Link : 'a'
+  const actionProps = to ? { to } : { href: post.href ?? '#blog' }
 
   return (
     <article className="group border-b border-slate-200/80 py-7 text-left first:pt-0 last:border-b-0 last:pb-0">
@@ -31,18 +39,26 @@ export default function BlogListCard({ post, contentType = 'blog', actionLabel }
           </div>
 
           <h3 className="max-w-xl text-[1.6rem] font-semibold leading-[1.35] text-slate-900 sm:text-[1.9rem]">
-            {post.title}
+            <ActionTag
+              {...actionProps}
+              className="transition-colors duration-300 hover:text-[#18399F]"
+            >
+              {post.title}
+            </ActionTag>
           </h3>
 
-          <a
-            href={post.href ?? '#blog'}
+          <ActionTag
+            {...actionProps}
             className="inline-flex w-fit text-base font-semibold text-[#18399F] underline decoration-1 underline-offset-4 transition-colors duration-300 hover:text-slate-900"
           >
             {actionLabel ?? config.actionLabel}
-          </a>
+          </ActionTag>
         </div>
 
-        <div className="relative overflow-hidden rounded-[1.15rem] bg-slate-100 shadow-[0_14px_28px_rgba(15,23,42,0.08)] sm:justify-self-end">
+        <ActionTag
+          {...actionProps}
+          className="relative overflow-hidden rounded-[1.15rem] bg-slate-100 shadow-[0_14px_28px_rgba(15,23,42,0.08)] sm:justify-self-end"
+        >
           {post.image ? (
             <img
               src={post.image}
@@ -69,7 +85,7 @@ export default function BlogListCard({ post, contentType = 'blog', actionLabel }
               </div>
             </>
           ) : null}
-        </div>
+        </ActionTag>
       </div>
     </article>
   )

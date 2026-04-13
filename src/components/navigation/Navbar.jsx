@@ -1,17 +1,31 @@
-import { useEffect, useState } from 'react'
 import { Menu } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAppShell } from '../../context/AppShellContext.jsx'
-import { useAuth } from '../../context/AuthContext.jsx'
 import { marketingNavigation } from '../../data/navigation.js'
 import BrandMark from '../common/BrandMark.jsx'
 import Container from '../common/Container.jsx'
 import PrimaryButton from '../common/PrimaryButton.jsx'
 
-function NavAnchor({ href, isActive, label, onClick }) {
+function getIsActive(item, pathname, hash) {
+  if (!item.to) {
+    return false
+  }
+
+  const [itemPathname, itemHashValue] = item.to.split('#')
+  const normalizedPathname = itemPathname || '/'
+  const normalizedHash = itemHashValue ? `#${itemHashValue}` : ''
+
+  if (normalizedHash) {
+    return pathname === normalizedPathname && (hash || '#home') === normalizedHash
+  }
+
+  return pathname === normalizedPathname
+}
+
+function NavAnchor({ item, isActive, onClick }) {
   return (
-    <a
-      href={href}
+    <Link
+      to={item.to}
       onClick={onClick}
       className={`relative inline-flex items-center self-stretch px-2 pt-3 pb-2 text-[0.76rem] font-semibold uppercase tracking-[0.14em] transition-colors duration-700 ${
         isActive ? 'text-white' : 'text-white/85 hover:text-white'
@@ -23,34 +37,14 @@ function NavAnchor({ href, isActive, label, onClick }) {
         }`}
         aria-hidden="true"
       />
-      {label}
-    </a>
+      {item.label}
+    </Link>
   )
 }
 
 export default function Navbar() {
   const { toggleSidebar } = useAppShell()
-  const { login } = useAuth()
-  const navigate = useNavigate()
-  const [activeHref, setActiveHref] = useState(() =>
-    window.location.hash || '#home',
-  )
-
-  const handleQuickTenantLogin = () => {
-    login({ email: 'mabel.tetteh@rms.app', role: 'Tenant' })
-    navigate('/dashboard')
-  }
-
-  useEffect(() => {
-    const syncActiveHash = () => {
-      setActiveHref(window.location.hash || '#home')
-    }
-
-    window.addEventListener('hashchange', syncActiveHash)
-    return () => {
-      window.removeEventListener('hashchange', syncActiveHash)
-    }
-  }, [])
+  const location = useLocation()
 
   return (
     <header className="sticky top-0 z-40 bg-transparent">
@@ -60,9 +54,8 @@ export default function Navbar() {
             {marketingNavigation.left.map((item) => (
               <NavAnchor
                 key={item.label}
-                {...item}
-                isActive={activeHref === item.href}
-                onClick={() => setActiveHref(item.href)}
+                item={item}
+                isActive={getIsActive(item, location.pathname, location.hash)}
               />
             ))}
           </div>
@@ -79,16 +72,14 @@ export default function Navbar() {
             {marketingNavigation.right.map((item) => (
               <NavAnchor
                 key={item.label}
-                {...item}
-                isActive={activeHref === item.href}
-                onClick={() => setActiveHref(item.href)}
+                item={item}
+                isActive={getIsActive(item, location.pathname, location.hash)}
               />
             ))}
 
             <div className="flex items-center gap-4">
               <PrimaryButton
-                type="button"
-                onClick={handleQuickTenantLogin}
+                to="/login"
                 size="md"
                 variant="light"
                 className="px-7 py-2 text-[0.72rem]"
@@ -108,13 +99,12 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-3 lg:hidden">
-            <button
-              type="button"
-              onClick={handleQuickTenantLogin}
+            <Link
+              to="/login"
               className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/10"
             >
               Login
-            </button>
+            </Link>
             <button
               type="button"
               onClick={toggleSidebar}

@@ -17,6 +17,7 @@ const variants = {
 const sizes = {
   md: 'px-5 py-3 text-sm sm:px-6',
   lg: 'px-6 py-4 text-sm sm:px-7',
+  xl: 'px-6 py-3.5 text-sm sm:px-7 sm:py-4',
 }
 
 export default function PrimaryButton({

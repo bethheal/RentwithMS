@@ -6,12 +6,12 @@ const roleCards = [
   {
     id: "tenant",
     label: "Tenant",
-    
+    description: "Continue to a tenant space for browsing homes, managing requests, and following rental updates.",
   },
   {
     id: "landlord",
     label: "Landlord",
-    
+    description: "Continue to a landlord space for listings, tenant activity, payments, and property workflows.",
   },
 ];
 

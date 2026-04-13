@@ -33,7 +33,7 @@ export default function HeroSection({ hero }) {
                   <div
                     key={line.join('-')}
                     className={`flex items-center gap-2 sm:gap-3 ${
-                      lineIndex === 0 ? 'flex-nowrap' : 'flex-wrap'
+                      lineIndex === 0 ? 'flex-wrap sm:flex-nowrap' : 'flex-wrap'
                     }`}
                   >
                     {line.map((word) => {
@@ -67,14 +67,14 @@ export default function HeroSection({ hero }) {
                 {hero.description}
               </p>
 
-              <div className="mt-12 flex flex-col gap-4 sm:mt-16 sm:flex-row">
+              <div className="mt-12 flex max-w-md flex-col gap-4 sm:mt-16 sm:max-w-none sm:flex-row">
                 <PrimaryButton
                   href={hero.primaryAction.href}
                   icon={Search}
                   showIcon
                   size="xl"
                   variant="light"
-                  className="min-w-[11.5rem] justify-center border-slate-400 p-3  font-extrabold text-[#092986]"
+                  className="w-full min-w-0 justify-center border-slate-400 p-3 font-extrabold text-[#092986] sm:w-auto sm:min-w-[11.5rem]"
                 >
                   {hero.primaryAction.label}
                 </PrimaryButton>
@@ -82,7 +82,7 @@ export default function HeroSection({ hero }) {
                   to={hero.secondaryAction.to}
                   size="xl"
                   variant="light"
-                  className="min-w-[11.5rem] justify-center border-slate-400 px-7 text-[#092986]"
+                  className="w-full min-w-0 justify-center border-slate-400 px-7 text-[#092986] sm:w-auto sm:min-w-[11.5rem]"
                 >
                   {hero.secondaryAction.label}
                 </PrimaryButton>

@@ -16,7 +16,7 @@ import FooterSection from "../../components/sections/FooterSection.jsx";
 import HeroSection from "../../components/sections/HeroSection.jsx";
 import PricingSection from "../../components/sections/PricingSection.jsx";
 
-const landingPageContent = {
+export const landingPageContent = {
   hero: {
     eyebrow: "Hero Section",
     titleLines: [
@@ -534,7 +534,7 @@ export default function HomePage() {
       <HeroSection hero={hero} />
       <AboutMissionSection mission={mission} />
       <FeaturesSection features={features} />
-      <BlogSection blog={blog} />
+      <BlogSection blog={blog} actionPath="/blog" />
       <FaqSection faq={faq} />
       <PricingSection pricing={pricing} cta={cta} />
       <FooterSection footer={footer} />

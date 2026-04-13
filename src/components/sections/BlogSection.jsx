@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import bookPattern from '../../assets/illustrations/book-pattern.svg'
 import { classNames } from '../../utils/classNames.js'
 import BlogListCard from '../cards/BlogListCard.jsx'
@@ -17,7 +17,26 @@ function normalizeFilterId(value, index) {
   return normalizedValue || `filter-${index + 1}`
 }
 
-export default function BlogSection({ blog }) {
+function getInitialFilterId(filters, activeFilter, initialFilterId) {
+  const normalizedInitialFilterId = normalizeFilterId(initialFilterId, 0)
+
+  return (
+    filters.find(
+      (filter) =>
+        filter.id === normalizedInitialFilterId ||
+        filter.id === normalizeFilterId(activeFilter, 0) ||
+        filter.label === activeFilter,
+    )?.id ??
+    filters[0]?.id ??
+    ''
+  )
+}
+
+export default function BlogSection({
+  blog,
+  actionPath = '/blog',
+  initialFilterId,
+}) {
   const filters = (blog.filters ?? ['Our Blogs', 'Videos', 'Podcasts']).map(
     (filter, index) => {
       if (typeof filter === 'string') {
@@ -37,15 +56,16 @@ export default function BlogSection({ blog }) {
     },
   )
 
-  const initialFilterId =
-    filters.find(
-      (filter) =>
-        filter.id === normalizeFilterId(blog.activeFilter, 0) ||
-        filter.label === blog.activeFilter,
-    )?.id ??
-    filters[0]?.id ??
-    ''
-  const [activeFilterId, setActiveFilterId] = useState(initialFilterId)
+  const resolvedInitialFilterId = getInitialFilterId(
+    filters,
+    blog.activeFilter,
+    initialFilterId,
+  )
+  const [activeFilterId, setActiveFilterId] = useState(resolvedInitialFilterId)
+
+  useEffect(() => {
+    setActiveFilterId(resolvedInitialFilterId)
+  }, [resolvedInitialFilterId])
 
   const activeFilter =
     filters.find((filter) => filter.id === activeFilterId) ?? filters[0]
@@ -95,6 +115,7 @@ export default function BlogSection({ blog }) {
                       post={post}
                       contentType={post.contentType ?? activeContentType}
                       actionLabel={post.actionLabel ?? activeActionLabel}
+                      to={`${actionPath}?filter=${activeFilter.id}&post=${post.id}#blog`}
                     />
                   ))
                 ) : (

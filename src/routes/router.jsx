@@ -8,6 +8,7 @@ import DashboardLayout from '../layouts/DashboardLayout.jsx'
 import MainLayout from '../layouts/MainLayout.jsx'
 
 const HomePage = lazy(() => import('../pages/home/HomePage.jsx'))
+const BlogPage = lazy(() => import('../pages/blog/BlogPage.jsx'))
 const LoginPage = lazy(() => import('../pages/auth/LoginPage.jsx'))
 const SignupPage = lazy(() => import('../pages/auth/SignupPage.jsx'))
 const DashboardPage = lazy(() => import('../pages/dashboard/DashboardPage.jsx'))
@@ -25,7 +26,10 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <MainLayout />,
-    children: [{ index: true, element: renderLazyPage(HomePage) }],
+    children: [
+      { index: true, element: renderLazyPage(HomePage) },
+      { path: 'blog', element: renderLazyPage(BlogPage) },
+    ],
   },
   {
     element: <AuthLayout />,

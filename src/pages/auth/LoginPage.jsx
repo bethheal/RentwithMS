@@ -88,22 +88,7 @@ function LoginRoleForm({ roleKey }) {
         </p>
       }
     >
-      <div className="mb-6 rounded-[1.4rem] border border-[#E2EAFA] bg-[linear-gradient(180deg,#F8FAFF_0%,#FFFFFF_100%)] p-4 shadow-[0_18px_40px_rgba(24,57,159,0.06)]">
-        <div className="flex items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-[1rem] bg-[#18399F] text-white shadow-[0_16px_28px_rgba(24,57,159,0.22)]">
-            <ShieldCheck className="size-5" />
-          </span>
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-[#18399F]">
-              Private workspace access
-            </p>
-            <p className="text-sm leading-6 text-slate-500">
-              Sign in as a {roleConfig.label.toLowerCase()} and continue where
-              you left off with your saved activity and workspace settings.
-            </p>
-          </div>
-        </div>
-      </div>
+      
 
       <form id="login-form" onSubmit={handleSubmit} className="space-y-5">
         <AuthFormField
@@ -124,16 +109,15 @@ function LoginRoleForm({ roleKey }) {
           onChange={handleChange}
         />
 
-        <div className="flex items-center justify-between gap-4 rounded-[1.15rem] border border-[#E6EEFF] bg-[#F9FBFF] px-4 py-3">
+        <div >
           <div className="flex items-center gap-2 text-sm text-slate-500">
-            <Sparkles className="size-4 text-[#18399F]" />
-            <span>Demo password is already filled for quick access.</span>
+         
           </div>
           <button
             type="button"
             className="text-sm font-semibold text-[#18399F] transition-colors duration-300 hover:text-[#102A74]"
           >
-            Forgot?
+            Forgotten Password?
           </button>
         </div>
       </form>

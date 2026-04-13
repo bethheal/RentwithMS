@@ -1,13 +1,13 @@
 export const marketingNavigation = {
   left: [
-    { label: 'Home', href: '#home' },
-    { label: 'About', href: '#about' },
-    { label: 'Features', href: '#features' },
-    { label: 'Pricing', href: '#pricing' },
+    { label: 'Home', to: '/#home' },
+    { label: 'About', to: '/#about' },
+    { label: 'Features', to: '/#features' },
+    { label: 'Pricing', to: '/#pricing' },
   ],
   right: [
-    { label: 'Blog', href: '#blog' },
-    { label: 'Contact', href: '#contact' },
+    { label: 'Blog', to: '/blog' },
+    { label: 'Contact', to: '/#contact' },
   ],
 }
 
