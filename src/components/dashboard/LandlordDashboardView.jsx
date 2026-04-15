@@ -208,7 +208,7 @@ function LandlordSidebar({ navSections }) {
                   <ChevronDown className="size-3" />
                 </div>
 
-                <div className="mt-1 space-y-1.5 pl-4">
+                <div className="mt-1  space-y-1.5 pl-4">
                   {section.items.map((item) => (
                     <button
                       key={`${section.title}-${item}`}

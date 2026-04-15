@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
-  ArrowLeft,
   BadgeCheck,
+  Bell,
   Building2,
   CalendarDays,
   ChevronDown,
@@ -18,6 +18,7 @@ import {
   LogOut,
   Megaphone,
   Menu,
+  Mail,
   MessageSquareText,
   MessagesSquare,
   Minus,
@@ -120,6 +121,21 @@ function CounterControl({ value, onIncrement, onDecrement }) {
   );
 }
 
+function DashboardActionButton({ children, className = "", ...props }) {
+  return (
+    <button
+      type="button"
+      className={classNames(
+        "grid size-7 place-items-center rounded-full border border-[#C9D4EC] bg-white text-[#18399F] transition-colors duration-300 hover:border-[#18399F] hover:text-[#102A74]",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
 function SidebarNavItem({ isActive, item, onClick }) {
   const Icon = navItemIconMap[item.icon] ?? ChevronRight;
 
@@ -162,28 +178,31 @@ function TenantSidebarContent({
   onToggleSection,
   preferenceItems,
   showCloseButton = false,
+  showBrandRow = true,
 }) {
   return (
     <>
-      <div className="flex h-14 items-center justify-between border-b border-[#C9D4EC] px-6">
-        <Link
-          to="/"
-          className="text-[1.05rem] font-black uppercase tracking-[0.08em] text-black"
-        >
-          RMS
-        </Link>
-
-        {showCloseButton ? (
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid size-10 place-items-center rounded-full border border-[#C9D4EC] text-[#18399F]"
-            aria-label="Close dashboard navigation"
+      {showBrandRow ? (
+        <div className="flex h-14 items-center justify-between border-b border-[#C9D4EC] px-6">
+          <Link
+            to="/"
+            className="text-[1.05rem] font-black uppercase tracking-[0.08em] text-black"
           >
-            <X className="size-4" />
-          </button>
-        ) : null}
-      </div>
+            RMS
+          </Link>
+
+          {showCloseButton ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid size-10 place-items-center rounded-full border border-[#C9D4EC] text-[#18399F]"
+              aria-label="Close dashboard navigation"
+            >
+              <X className="size-4" />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
@@ -315,6 +334,18 @@ export default function TenantDashboardView() {
 
   const activeItem =
     allItems.find((item) => item.id === activeItemId) ?? allItems[0];
+  const activeSection =
+    normalizedNavSections.find((section) =>
+      section.items.some((item) => item.id === activeItemId)
+    ) ??
+    mainNavSections[0] ??
+    preferenceSection;
+  const activeSectionTitle = activeSection?.title ?? "Dashboard";
+  const activeItemLabel = activeItem?.label ?? defaultActiveItemLabel;
+  const isActiveSectionExpanded =
+    activeSection?.id && activeSection.id !== "preferences"
+      ? Boolean(expandedSections[activeSection.id])
+      : true;
 
   const visibleListings = listings.filter((listing) => {
     const matchesSearch =
@@ -371,14 +402,36 @@ export default function TenantDashboardView() {
     setIsMobileNavOpen(false);
   };
 
+  const selectNavItemByLabel = (label) => {
+    const matchedSection = normalizedNavSections.find((section) =>
+      section.items.some((item) => item.label === label)
+    );
+    const matchedItem = matchedSection?.items.find((item) => item.label === label);
+
+    if (matchedSection && matchedItem) {
+      handleSelectItem(matchedSection.id, matchedItem);
+    }
+  };
+
+  const handleHeaderSectionToggle = () => {
+    if (activeSection?.id && activeSection.id !== "preferences") {
+      handleSectionToggle(activeSection.id);
+      return;
+    }
+
+    selectNavItemByLabel("Settings");
+  };
+
   const renderBrowseHomesView = () => (
     <>
-      <div className="flex flex-wrap items-center gap-3 text-[#18399F]">
-        <ArrowLeft className="size-5" />
-        <span className="text-sm font-medium text-slate-400">{profileName}</span>
+      <div className="lg:hidden">
+        <p className="text-[0.72rem] font-bold uppercase tracking-[0.08em] text-[#111827]">
+          {activeSectionTitle}
+        </p>
+        <p className="mt-1 text-sm text-[#3656B7]">{activeItemLabel}</p>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4 lg:mt-0">
         <div className="relative max-w-[42rem]">
           <Search className="pointer-events-none absolute left-5 top-1/2 size-6 -translate-y-1/2 text-[#18399F]" />
           <input
@@ -618,8 +671,95 @@ export default function TenantDashboardView() {
 
   return (
     <div className="min-h-screen bg-white text-[#18399F]">
-      <div className="grid min-h-screen lg:grid-cols-[14rem_minmax(0,1fr)]">
-        <aside className="hidden border-r border-[#D6DFF1] bg-[#F4F4F4] lg:flex lg:flex-col">
+      <div className="flex min-h-screen flex-col lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:grid-rows-[3rem_2.65rem_minmax(0,1fr)]">
+        <div className="hidden items-center border-b border-r border-[#C9D4EC] bg-[#F4F4F4] px-8 lg:flex lg:col-start-1 lg:row-start-1">
+          <Link
+            to="/"
+            className="text-[1.05rem] font-black uppercase tracking-[0.08em] text-black"
+          >
+            RMS
+          </Link>
+        </div>
+
+        <div className="hidden items-center justify-between border-b border-[#C9D4EC] bg-[#F4F4F4] px-5 lg:flex lg:col-start-2 lg:row-start-1">
+          <span
+            title={profileName}
+            className="grid size-8 place-items-center rounded-full bg-[#D9D9D9] text-xs font-bold text-[#18399F]"
+          >
+            {initials}
+          </span>
+
+          <button
+            type="button"
+            onClick={logout}
+            className="inline-flex size-9 items-center justify-center rounded-[0.4rem] bg-[#18399F] text-white transition-colors duration-300 hover:bg-[#102A74]"
+            aria-label="Sign out"
+          >
+            <LogOut className="size-4" />
+          </button>
+        </div>
+
+        <div className="hidden flex-col justify-center border-b border-r border-[#C9D4EC] bg-[#F4F4F4] px-8 lg:flex lg:col-start-1 lg:row-start-2">
+          <button
+            type="button"
+            onClick={handleHeaderSectionToggle}
+            className="inline-flex w-fit items-center gap-1 text-[0.72rem] font-bold uppercase tracking-[0.08em] text-[#111827]"
+          >
+            <span>{activeSectionTitle}</span>
+            <ChevronDown
+              className={classNames(
+                "size-3 text-[#18399F] transition-transform duration-300",
+                isActiveSectionExpanded ? "rotate-0" : "-rotate-90"
+              )}
+            />
+          </button>
+          <p className="mt-0.5 text-[0.72rem] text-[#3656B7]">{activeItemLabel}</p>
+        </div>
+
+        <div className="hidden items-center justify-end gap-2 border-b border-[#C9D4EC] bg-[#F4F4F4] px-4 lg:flex lg:col-start-2 lg:row-start-2">
+          <DashboardActionButton
+            onClick={() => selectNavItemByLabel(defaultActiveItemLabel)}
+            className="border-[#18399F] bg-[#18399F] text-white shadow-[0_12px_24px_rgba(24,57,159,0.18)] hover:border-[#102A74] hover:bg-[#102A74] hover:text-white"
+            aria-label={`Open ${defaultActiveItemLabel}`}
+          >
+            <Plus className="size-4" />
+          </DashboardActionButton>
+
+          <DashboardActionButton
+            onClick={() => selectNavItemByLabel("Chat with Landlord")}
+            aria-label="Open messages"
+          >
+            <Mail className="size-4" />
+          </DashboardActionButton>
+
+          <DashboardActionButton
+            onClick={() => selectNavItemByLabel("Announcement")}
+            aria-label="Open announcements"
+          >
+            <Bell className="size-4" />
+          </DashboardActionButton>
+
+          <DashboardActionButton
+            onClick={() => selectNavItemByLabel("Settings")}
+            aria-label="Open settings"
+          >
+            <UserCircle2 className="size-4" />
+          </DashboardActionButton>
+
+          <DashboardActionButton
+            onClick={handleHeaderSectionToggle}
+            aria-label={`Toggle ${activeSectionTitle} section`}
+          >
+            <ChevronDown
+              className={classNames(
+                "size-4 transition-transform duration-300",
+                isActiveSectionExpanded ? "rotate-0" : "-rotate-90"
+              )}
+            />
+          </DashboardActionButton>
+        </div>
+
+        <aside className="hidden min-h-0 border-r border-[#D6DFF1] bg-[#F4F4F4] lg:flex lg:col-start-1 lg:row-start-3 lg:flex-col">
           <TenantSidebarContent
             activeItemId={activeItemId}
             expandedSections={expandedSections}
@@ -627,11 +767,12 @@ export default function TenantDashboardView() {
             onSelectItem={handleSelectItem}
             onToggleSection={handleSectionToggle}
             preferenceItems={preferenceSection?.items ?? []}
+            showBrandRow={false}
           />
         </aside>
 
-        <div className="flex min-w-0 flex-col">
-          <header className="flex h-14 items-center justify-between border-b border-[#C9D4EC] px-4 sm:px-6 lg:px-7">
+        <div className="flex min-w-0 flex-col lg:col-start-2 lg:row-start-3 lg:min-h-0">
+          <header className="flex h-14 items-center justify-between border-b border-[#C9D4EC] px-4 sm:px-6 lg:hidden">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -650,10 +791,7 @@ export default function TenantDashboardView() {
             </div>
 
             <div className="ml-auto flex items-center gap-3">
-              <span className="grid size-9 place-items-center rounded-full text-[#18399F]">
-                <UserCircle2 className="size-7" />
-              </span>
-              <span className="grid size-9 place-items-center rounded-full bg-[#D9D9D9] text-sm font-bold text-[#18399F]">
+              <span className="grid cursor-pointer size-9 place-items-center rounded-full bg-[#D9D9D9] text-sm font-bold text-[#18399F]">
                 {initials}
               </span>
             </div>
@@ -668,7 +806,7 @@ export default function TenantDashboardView() {
             </button>
           </header>
 
-          <main className="flex-1 px-4 py-4 sm:px-6 lg:px-7 lg:py-5">
+          <main className="flex-1 px-4 py-4 sm:px-6 lg:min-h-0 lg:px-7 lg:py-5">
             {activeItem?.label === defaultActiveItemLabel ? (
               renderBrowseHomesView()
             ) : (
