@@ -1,4 +1,14 @@
 export const authRoleContent = {
+  admin: {
+    label: "Admin",
+    defaultName: "Trust Admin",
+    defaultEmail: "admin@rms.app",
+    signupNameLabel: "Admin Name*",
+    signupNamePlaceholder: "Name",
+    googleSignupName: "Google Admin",
+    googleSignupEmail: "admin.google@rms.app",
+    googleLoginEmail: "admin.google@rms.app",
+  },
   tenant: {
     label: "Tenant",
     defaultName: "New Tenant",
@@ -24,7 +34,11 @@ export const authRoleContent = {
 export function normalizeAuthRole(value) {
   const normalizedValue = String(value ?? "").trim().toLowerCase();
 
-  if (normalizedValue === "tenant" || normalizedValue === "landlord") {
+  if (
+    normalizedValue === "admin" ||
+    normalizedValue === "tenant" ||
+    normalizedValue === "landlord"
+  ) {
     return normalizedValue;
   }
 

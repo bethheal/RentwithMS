@@ -8,10 +8,11 @@ import { useAuth } from '../context/AuthContext.jsx'
 export default function DashboardLayout() {
   const { openSidebar } = useAppShell()
   const { user } = useAuth()
+  const isAdmin = user?.role?.toLowerCase() === 'admin'
   const isTenant = user?.role?.toLowerCase() === 'tenant'
   const isLandlord = user?.role?.toLowerCase() === 'landlord'
 
-  if (isTenant || isLandlord) {
+  if (isAdmin || isTenant || isLandlord) {
     return <Outlet />
   }
 

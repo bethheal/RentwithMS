@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   Bath,
@@ -16,10 +16,13 @@ import {
   Plus,
   Send,
   UserCircle2,
+  X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { landlordDashboardResponse } from "../../data/mockApi/landlordDashboard.js";
+import { useBodyScrollLock } from "../../hooks/useBodyScrollLock.js";
+import { classNames } from "../../utils/classNames.js";
 
 const stepShape = {
   first:
@@ -29,6 +32,44 @@ const stepShape = {
   last:
     "polygon(18px 0, 100% 0, 100% 100%, 18px 100%, 0 50%)",
 };
+
+function deriveInitials(name, fallback = "") {
+  const initials = String(name ?? "")
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return initials || fallback;
+}
+
+function ProfileAvatarButton({
+  avatar,
+  className = "",
+  initials,
+  name,
+  onClick,
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={`Edit profile for ${name}`}
+      className={classNames(
+        "grid shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full bg-[#D9D9D9] font-bold text-[#18399F] transition-transform duration-300 hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18399F]",
+        className
+      )}
+      aria-label="Edit landlord profile"
+    >
+      {avatar ? (
+        <img src={avatar} alt={name} className="h-full w-full object-cover" />
+      ) : (
+        <span>{initials}</span>
+      )}
+    </button>
+  );
+}
 
 function Panel({ title, children, className = "" }) {
   return (
@@ -472,17 +513,75 @@ function CompletedStep() {
 }
 
 export default function LandlordDashboardView() {
-  const { logout, user } = useAuth();
+  const { logout, updateUser, user } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const { data } = landlordDashboardResponse;
   const profileName = user?.name ?? data.user.name;
-  const initials =
-    user?.name
-      ?.split(" ")
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() ?? data.user.initials;
+  const profileAvatar = user?.avatar ?? null;
+  const initials = deriveInitials(profileName, data.user.initials);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileDraftName, setProfileDraftName] = useState(profileName);
+  const [profileDraftAvatar, setProfileDraftAvatar] = useState(profileAvatar);
+
+  useBodyScrollLock(isProfileModalOpen);
+
+  useEffect(() => {
+    if (!isProfileModalOpen) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsProfileModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isProfileModalOpen]);
+
+  const handleOpenProfileModal = () => {
+    setProfileDraftName(profileName);
+    setProfileDraftAvatar(profileAvatar);
+    setIsProfileModalOpen(true);
+  };
+
+  const handleCloseProfileModal = () => {
+    setIsProfileModalOpen(false);
+  };
+
+  const handleProfileImageChange = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setProfileDraftAvatar(reader.result);
+      }
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleProfileSave = () => {
+    const nextName = profileDraftName.trim() || profileName;
+
+    updateUser({
+      ...(user ?? {}),
+      avatar: profileDraftAvatar ?? null,
+      email: user?.email ?? "landlord@example.com",
+      id: user?.id ?? "usr_landlord_01",
+      name: nextName,
+      role: user?.role ?? data.user.role,
+    });
+    setIsProfileModalOpen(false);
+  };
 
   const contentByStep = [
     <DetailsStep key="details" details={data.propertyDetails} />,
@@ -503,9 +602,13 @@ export default function LandlordDashboardView() {
             </Link>
 
             <div className="ml-auto flex items-center gap-3">
-              <span className="grid size-8 place-items-center rounded-full bg-[#D9D9D9] text-xs font-bold text-[#18399F]">
-                {initials}
-              </span>
+              <ProfileAvatarButton
+                avatar={profileAvatar}
+                className="size-8 text-xs"
+                initials={initials}
+                name={profileName}
+                onClick={handleOpenProfileModal}
+              />
               <span className="hidden text-sm font-medium text-slate-400 sm:inline">
                 {profileName}
               </span>
@@ -544,7 +647,11 @@ export default function LandlordDashboardView() {
                   <button
                     key={index}
                     type="button"
+                    onClick={Icon === UserCircle2 ? handleOpenProfileModal : undefined}
                     className="grid size-8 place-items-center rounded-full border border-[#CAD5ED] bg-white text-[#18399F]"
+                    aria-label={
+                      Icon === UserCircle2 ? "Open landlord profile editor" : undefined
+                    }
                   >
                     <Icon className="size-4" />
                   </button>
@@ -594,6 +701,125 @@ export default function LandlordDashboardView() {
               </div>
             </div>
           </main>
+        </div>
+      </div>
+
+      <div
+        className={classNames(
+          "fixed inset-0 z-[70] flex items-center justify-center p-4 transition-opacity duration-300",
+          isProfileModalOpen
+            ? "pointer-events-auto opacity-100"
+            : "pointer-events-none opacity-0"
+        )}
+        aria-hidden={!isProfileModalOpen}
+      >
+        <button
+          type="button"
+          onClick={handleCloseProfileModal}
+          className="absolute inset-0 bg-[#07163F]/45"
+          aria-label="Close landlord profile editor overlay"
+        />
+
+        <div
+          className="relative z-10 w-full max-w-md rounded-[1.8rem] border border-[#DCE5F7] bg-white p-6 shadow-[0_22px_44px_rgba(13,29,76,0.2)]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#3656B7]">
+                Edit Profile
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-[#102A74]">
+                Update your avatar and display name
+              </h2>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCloseProfileModal}
+              className="grid size-9 place-items-center rounded-full border border-[#C9D4EC] text-[#18399F] transition-colors duration-300 hover:border-[#18399F]"
+              aria-label="Close landlord profile editor"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+
+          <div className="mt-6 flex flex-col items-center gap-4 text-center">
+            <div className="grid size-24 place-items-center overflow-hidden rounded-full bg-[#E8EEFF] text-2xl font-bold text-[#18399F]">
+              {profileDraftAvatar ? (
+                <img
+                  src={profileDraftAvatar}
+                  alt={profileDraftName || profileName}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span>{deriveInitials(profileDraftName, initials)}</span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-2">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#18399F] px-4 py-2 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#102A74]">
+                <span>Upload Image</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfileImageChange}
+                  onClick={(event) => {
+                    event.currentTarget.value = "";
+                  }}
+                  className="hidden"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() => setProfileDraftAvatar(null)}
+                disabled={!profileDraftAvatar}
+                className={classNames(
+                  "rounded-full border px-4 py-2 text-sm font-semibold transition-colors duration-300",
+                  profileDraftAvatar
+                    ? "border-[#C9D4EC] text-[#18399F] hover:border-[#18399F]"
+                    : "cursor-not-allowed border-[#E3E8F5] text-slate-300"
+                )}
+              >
+                Remove Image
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <label
+              htmlFor="landlord-profile-name"
+              className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#3656B7]"
+            >
+              Profile Name
+            </label>
+            <input
+              id="landlord-profile-name"
+              type="text"
+              value={profileDraftName}
+              onChange={(event) => setProfileDraftName(event.target.value)}
+              placeholder="Enter your profile name"
+              className="h-12 w-full rounded-[1rem] border border-[#DCE5F7] px-4 text-sm text-slate-700 outline-none transition focus:border-[#18399F]"
+            />
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleCloseProfileModal}
+              className="rounded-full border border-[#C9D4EC] px-4 py-2 text-sm font-semibold text-[#18399F] transition-colors duration-300 hover:border-[#18399F]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleProfileSave}
+              className="rounded-full bg-[#18399F] px-4 py-2 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#102A74]"
+            >
+              Save Changes
+            </button>
+          </div>
         </div>
       </div>
     </div>

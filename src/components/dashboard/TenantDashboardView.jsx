@@ -1,20 +1,21 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BadgeCheck,
   Bell,
-  Building2,
   CalendarDays,
   ChevronDown,
   ChevronRight,
   CircleHelp,
   ClipboardList,
   Compass,
-  Droplets,
   FileText,
   FolderOpen,
+  Heart,
   History,
-  Home,
   LayoutDashboard,
+  LayoutGrid,
+  List,
+  LoaderCircle,
   LogOut,
   Megaphone,
   Menu,
@@ -26,36 +27,55 @@ import {
   Receipt,
   Search,
   Settings,
-  ShieldAlert,
-  Trash2,
   UserCircle2,
   Wallet,
   Wrench,
   X,
-  Zap,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { landlordTrustResponse } from "../../data/mockApi/landlordTrust.js";
 import { tenantDashboardResponse } from "../../data/mockApi/tenantDashboard.js";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock.js";
+import { getRatingSummary } from "../../utils/landlordTrust.js";
 import { classNames } from "../../utils/classNames.js";
+import {
+  RatingSummary,
+  VerificationBadgeList,
+  VerifiedLandlordBadge,
+} from "./LandlordTrustShared.jsx";
 import TenantListingCard from "./TenantListingCard.jsx";
+import {
+  TenantLandlordReviewsView,
+  TenantVerifiedLandlordsView,
+} from "./TenantTrustViews.jsx";
+import {
+  buildPrintableReceiptHtml,
+  ReceiptPreviewModal,
+  TenantPayRentView,
+  TenantReceiptsView,
+  TenantRentHistoryView,
+} from "./TenantPaymentsViews.jsx";
+import {
+  TenantAnnouncementsView,
+  TenantChatWithLandlordView,
+  TenantIssueReportView,
+  TenantRequestsView,
+} from "./TenantSupportViews.jsx";
 
 const defaultActiveItemLabel = "Browse Homes";
+const budgetStep = 100;
+const roomCountMax = 99;
+const listingsPageSize = 6;
 
 const navItemIconMap = {
-  "My Home": Home,
+  "Saved Homes": Heart,
   "Browse Homes": Compass,
-  "All Homes": Building2,
   "Verified Landlords": BadgeCheck,
-  "Flagged Landlords": ShieldAlert,
-  "Landlords Reviews": MessageSquareText,
+  "Landlord Reviews": MessageSquareText,
   "Pay Rent": Wallet,
   "Rent History": History,
   Receipts: Receipt,
-  Electricity: Zap,
-  "Water Bills": Droplets,
-  Waste: Trash2,
   "Report Issue": Wrench,
   "My Requests": ClipboardList,
   Announcement: Megaphone,
@@ -87,35 +107,96 @@ function normalizeNavItem(item) {
   };
 }
 
-function CounterControl({ value, onIncrement, onDecrement }) {
-  const canDecrement = value > 0;
+function deriveInitials(name, fallback = "") {
+  const initials = String(name ?? "")
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return initials || fallback;
+}
+
+function clampValue(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function parseNumberInput(value) {
+  const digitsOnly = String(value ?? "").replace(/[^\d]/g, "");
+  return digitsOnly ? Number(digitsOnly) : 0;
+}
+
+function formatSavedDate(dateString) {
+  if (!dateString) {
+    return "Saved recently";
+  }
+
+  const savedDate = new Date(dateString);
+  return `Saved ${savedDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  })}`;
+}
+
+function CounterControl({
+  value,
+  min = 0,
+  max = roomCountMax,
+  step = 1,
+  inputId,
+  label,
+  onChange,
+  onIncrement,
+  onDecrement,
+}) {
+  const canDecrement = value > min;
+  const canIncrement = value < max;
 
   return (
     <div className="inline-flex items-center gap-2 rounded-full border border-[#DCE5F7] bg-white px-2 py-1 text-[#18399F] shadow-[0_10px_24px_rgba(15,32,86,0.05)]">
       <button
         type="button"
-        onClick={onIncrement}
-        className="grid size-5 place-items-center rounded-full bg-[#18399F] text-white transition-colors duration-300 hover:bg-[#102A74]"
-        aria-label="Increase value"
-      >
-        <Plus className="size-3" />
-      </button>
-      <span className="min-w-6 text-center text-xs font-semibold text-slate-500">
-        {value}
-      </span>
-      <button
-        type="button"
         onClick={onDecrement}
         disabled={!canDecrement}
         className={classNames(
-          "grid size-5 place-items-center rounded-full text-white transition-colors duration-300",
+          "grid size-7 place-items-center rounded-full border transition-colors duration-300",
           canDecrement
-            ? "bg-[#18399F] hover:bg-[#102A74]"
-            : "bg-[#B8C7F3] cursor-not-allowed"
+            ? "border-[#18399F] bg-white text-[#18399F] hover:bg-[#18399F] hover:text-white"
+            : "border-[#DCE5F7] bg-[#F3F6FF] text-[#B8C7F3] cursor-not-allowed"
         )}
-        aria-label="Decrease value"
+        aria-label={`Decrease ${label}`}
       >
-        <Minus className="size-3" />
+        <Minus className="size-3.5" />
+      </button>
+
+      <label htmlFor={inputId} className="sr-only">
+        {label}
+      </label>
+      <input
+        id={inputId}
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={onChange}
+        className="h-8 w-16 rounded-full border border-[#DCE5F7] px-2 text-center text-sm font-semibold text-[#18399F] outline-none transition focus:border-[#18399F] [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+
+      <button
+        type="button"
+        onClick={onIncrement}
+        disabled={!canIncrement}
+        className={classNames(
+          "grid size-7 place-items-center rounded-full border transition-colors duration-300",
+          canIncrement
+            ? "border-[#18399F] bg-white text-[#18399F] hover:bg-[#18399F] hover:text-white"
+            : "border-[#DCE5F7] bg-[#F3F6FF] text-[#B8C7F3] cursor-not-allowed"
+        )}
+        aria-label={`Increase ${label}`}
+      >
+        <Plus className="size-3.5" />
       </button>
     </div>
   );
@@ -132,6 +213,33 @@ function DashboardActionButton({ children, className = "", ...props }) {
       {...props}
     >
       {children}
+    </button>
+  );
+}
+
+function ProfileAvatarButton({
+  avatar,
+  className = "",
+  initials,
+  name,
+  onClick,
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={`Edit profile for ${name}`}
+      className={classNames(
+        "grid shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full bg-[#D9D9D9] font-bold text-[#18399F] transition-transform duration-300 hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18399F]",
+        className
+      )}
+      aria-label="Edit profile"
+    >
+      {avatar ? (
+        <img src={avatar} alt={name} className="h-full w-full object-cover" />
+      ) : (
+        <span>{initials}</span>
+      )}
     </button>
   );
 }
@@ -156,7 +264,7 @@ function SidebarNavItem({ isActive, item, onClick }) {
           isActive ? "bg-[#E8EEFF] text-[#18399F]" : "bg-white/65 text-[#3656B7]"
         )}
       >
-        <Icon className="size-4" />
+        <Icon className={classNames("size-4", item.label === "Saved Homes" ? "fill-current" : "")} />
       </span>
       <span>{item.label}</span>
     </button>
@@ -167,6 +275,413 @@ function toggleValue(values, value) {
   return values.includes(value)
     ? values.filter((item) => item !== value)
     : [...values, value];
+}
+
+function SelectableFilterChip({
+  active,
+  children,
+  className = "",
+  ...props
+}) {
+  return (
+    <button
+      type="button"
+      className={classNames(
+        "rounded-full border px-4 py-2 text-sm font-semibold transition-colors duration-300",
+        active
+          ? "border-[#18399F] bg-[#18399F] text-white shadow-[0_12px_24px_rgba(24,57,159,0.16)]"
+          : "border-[#D7E0F3] bg-white text-[#3656B7] hover:border-[#18399F] hover:text-[#18399F]",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ActiveFilterChip({ label, onRemove }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-[#CFE0FF] bg-[#EEF4FF] px-3 py-1.5 text-sm font-medium text-[#18399F]">
+      <span>{label}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="grid size-5 place-items-center rounded-full bg-white/85 text-[#18399F] transition-colors duration-300 hover:bg-white"
+        aria-label={`Remove ${label} filter`}
+      >
+        <X className="size-3" />
+      </button>
+    </span>
+  );
+}
+
+function SidebarFilterSection({ title, children }) {
+  return (
+    <section className="space-y-3">
+      <h3 className="text-sm font-semibold text-[#102A74]">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function ListingSkeletonCard({ viewMode }) {
+  const isListView = viewMode === "list";
+
+  return (
+    <div
+      className={classNames(
+        "overflow-hidden rounded-[1.8rem] border border-[#DCE5F7] bg-white p-4 shadow-[0_18px_36px_rgba(15,32,86,0.06)]",
+        isListView ? "grid gap-5 md:grid-cols-[15rem_minmax(0,1fr)]" : "space-y-4"
+      )}
+    >
+      <div className="h-[15rem] animate-pulse rounded-[1.35rem] bg-[#EEF3FF]" />
+      <div className="space-y-4">
+        <div className="h-4 w-28 animate-pulse rounded-full bg-[#EEF3FF]" />
+        <div className="h-6 w-2/3 animate-pulse rounded-full bg-[#EEF3FF]" />
+        <div className="h-4 w-1/2 animate-pulse rounded-full bg-[#F4F7FF]" />
+        <div className="h-20 w-full animate-pulse rounded-[1rem] bg-[#F8FBFF]" />
+        <div className="flex flex-wrap gap-2">
+          <div className="h-9 w-28 animate-pulse rounded-full bg-[#EEF3FF]" />
+          <div className="h-9 w-32 animate-pulse rounded-full bg-[#EEF3FF]" />
+          <div className="h-9 w-24 animate-pulse rounded-full bg-[#EEF3FF]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RequestActionModal({ modalState, onClose, onSubmit }) {
+  const listing = modalState.listing;
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [preferredDate, setPreferredDate] = useState("");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (!listing) {
+      return;
+    }
+
+    setFullName("");
+    setPhone("");
+    setPreferredDate("");
+    setMessage("");
+  }, [listing, modalState.mode]);
+
+  if (!listing) {
+    return null;
+  }
+
+  const isContactMode = modalState.mode === "contact";
+  const title = isContactMode ? "Contact Landlord" : "Request Viewing";
+  const subtitle = isContactMode
+    ? "Send a quick message and we will notify the landlord right away."
+    : "Share your preferred date and we will send a viewing request instantly.";
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute inset-0 bg-[#07163F]/45"
+        aria-label="Close request viewing modal"
+      />
+
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit({
+            listing,
+            mode: modalState.mode,
+            fullName,
+            phone,
+            preferredDate,
+            message,
+          });
+        }}
+        className="relative z-10 w-full max-w-lg rounded-[1.8rem] border border-[#DCE5F7] bg-white p-6 shadow-[0_22px_44px_rgba(13,29,76,0.2)]"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#3656B7]">
+              {title}
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-[#102A74]">
+              {listing.title}
+            </h2>
+            <p className="mt-2 text-sm leading-7 text-slate-500">{subtitle}</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid size-9 place-items-center rounded-full border border-[#C9D4EC] text-[#18399F] transition-colors duration-300 hover:border-[#18399F]"
+            aria-label="Close request viewing modal"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#5C7BD9]">
+              Full Name
+            </span>
+            <input
+              type="text"
+              required
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+              className="h-12 w-full rounded-[1rem] border border-[#DCE5F7] px-4 text-sm text-slate-700 outline-none transition focus:border-[#18399F]"
+              placeholder="Your full name"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#5C7BD9]">
+              Phone
+            </span>
+            <input
+              type="tel"
+              required
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              className="h-12 w-full rounded-[1rem] border border-[#DCE5F7] px-4 text-sm text-slate-700 outline-none transition focus:border-[#18399F]"
+              placeholder="055 000 0000"
+            />
+          </label>
+        </div>
+
+        {!isContactMode ? (
+          <label className="mt-4 block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#5C7BD9]">
+              Preferred Date
+            </span>
+            <input
+              type="date"
+              required
+              value={preferredDate}
+              onChange={(event) => setPreferredDate(event.target.value)}
+              className="h-12 w-full rounded-[1rem] border border-[#DCE5F7] px-4 text-sm text-slate-700 outline-none transition focus:border-[#18399F]"
+            />
+          </label>
+        ) : null}
+
+        <label className="mt-4 block">
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#5C7BD9]">
+            Message
+          </span>
+          <textarea
+            required
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            className="min-h-[8rem] w-full rounded-[1rem] border border-[#DCE5F7] px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-[#18399F]"
+            placeholder={
+              isContactMode
+                ? "Introduce yourself and ask your question."
+                : "Share any preferred time or extra request."
+            }
+          />
+        </label>
+
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-[#C9D4EC] px-4 py-2 text-sm font-semibold text-[#18399F] transition-colors duration-300 hover:border-[#18399F]"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="rounded-full bg-[#18399F] px-4 py-2 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#102A74]"
+          >
+            {isContactMode ? "Send Message" : "Send Request"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function PropertyDetailsModal({
+  landlord,
+  isSaved,
+  listing,
+  onClose,
+  onContact,
+  onOpenLandlordProfile,
+  onRequestViewing,
+  onToggleSave,
+  ratingSummary,
+}) {
+  if (!listing) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[75] flex items-center justify-center p-4">
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute inset-0 bg-[#07163F]/45"
+        aria-label="Close property details"
+      />
+
+      <div className="relative z-10 w-full max-w-3xl overflow-hidden rounded-[1.9rem] border border-[#DCE5F7] bg-white shadow-[0_24px_48px_rgba(13,29,76,0.22)]">
+        <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="relative h-full min-h-[18rem] bg-[#EEF3FF]">
+            <img
+              src={listing.image}
+              alt={listing.title}
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2">
+              {listing.featured ? (
+                <span className="rounded-full bg-[#18399F] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white">
+                  Featured
+                </span>
+              ) : null}
+              <span className="rounded-full bg-white/92 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#18399F]">
+                {listing.houseType}
+              </span>
+            </div>
+          </div>
+
+          <div className="p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#5C7BD9]">
+                  Property Details
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold text-[#102A74]">
+                  {listing.title}
+                </h2>
+                <p className="mt-2 text-sm text-slate-500">{listing.location}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {landlord ? <VerifiedLandlordBadge /> : null}
+                  <RatingSummary
+                    average={ratingSummary?.average ?? 0}
+                    count={ratingSummary?.count ?? 0}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="grid size-9 place-items-center rounded-full border border-[#C9D4EC] text-[#18399F] transition-colors duration-300 hover:border-[#18399F]"
+                aria-label="Close property details"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <p className="mt-4 text-2xl font-semibold text-[#16327E]">
+              {listing.amount}
+            </p>
+            <p className="mt-4 text-sm leading-7 text-slate-500">
+              {listing.description}
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {listing.tags.map((tag) => (
+                <span
+                  key={`${listing.id}-${tag}`}
+                  className="rounded-full bg-[#EEF3FF] px-3 py-2 text-xs font-medium text-[#3656B7]"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[1.2rem] bg-[#F8FBFF] p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5C7BD9]">
+                  Home Specs
+                </p>
+                <p className="mt-3 text-sm text-slate-600">
+                  {listing.bedrooms} bedroom{listing.bedrooms === 1 ? "" : "s"} and{" "}
+                  {listing.bathrooms} bathroom
+                  {listing.bathrooms === 1 ? "" : "s"}
+                </p>
+              </div>
+
+              <div className="rounded-[1.2rem] bg-[#F8FBFF] p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5C7BD9]">
+                  Amenities
+                </p>
+                <p className="mt-3 text-sm text-slate-600">
+                  {listing.amenities.join(", ")}
+                </p>
+              </div>
+            </div>
+
+            {landlord ? (
+              <div className="mt-5 rounded-[1.2rem] border border-[#DCE5F7] bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5C7BD9]">
+                      Landlord Profile
+                    </p>
+                    <p className="mt-2 text-base font-semibold text-[#102A74]">
+                      {landlord.name}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {landlord.responseTime}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onOpenLandlordProfile}
+                    className="rounded-full border border-[#C9D4EC] bg-[#F8FBFF] px-4 py-2 text-sm font-semibold text-[#18399F] transition-colors duration-300 hover:border-[#18399F]"
+                  >
+                    Open Profile
+                  </button>
+                </div>
+
+                <VerificationBadgeList
+                  verification={landlord.verification}
+                  className="mt-4"
+                  compact
+                />
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={onRequestViewing}
+                className="rounded-full bg-[#18399F] px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#102A74]"
+              >
+                Request Viewing
+              </button>
+              <button
+                type="button"
+                onClick={onContact}
+                className="rounded-full border border-[#C9D4EC] px-4 py-2.5 text-sm font-semibold text-[#18399F] transition-colors duration-300 hover:border-[#18399F]"
+              >
+                Contact
+              </button>
+              <button
+                type="button"
+                onClick={onToggleSave}
+                className={classNames(
+                  "rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors duration-300",
+                  isSaved
+                    ? "border-[#18399F] bg-[#EEF4FF] text-[#18399F]"
+                    : "border-[#C9D4EC] text-[#18399F] hover:border-[#18399F]"
+                )}
+              >
+                {isSaved ? "Saved" : "Save Home"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function TenantSidebarContent({
@@ -283,8 +798,21 @@ function EmptyDashboardView({ title }) {
 }
 
 export default function TenantDashboardView() {
-  const { logout, user } = useAuth();
-  const { filters, listings, map, navSections } = tenantDashboardResponse.data;
+  const { logout, updateUser, user } = useAuth();
+  const {
+    announcements: initialAnnouncements,
+    chatConversations: initialChatConversations,
+    filters,
+    issueReports: initialIssueReports,
+    listings,
+    navSections,
+    receipts: initialReceipts,
+    rentHistory: initialRentHistory,
+    rentPayment: initialRentPayment,
+    serviceRequests: initialServiceRequests,
+    user: fallbackUser,
+  } = tenantDashboardResponse.data;
+  const verifiedLandlords = landlordTrustResponse.data.verifiedLandlords;
   const normalizedNavSections = navSections.map((section) => ({
     ...section,
     id: createId(section.title),
@@ -300,14 +828,9 @@ export default function TenantDashboardView() {
     ...mainNavSections.flatMap((section) => section.items),
     ...(preferenceSection?.items ?? []),
   ];
-  const profileName = user?.name ?? tenantDashboardResponse.data.user.name;
-  const initials =
-    user?.name
-      ?.split(" ")
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() ?? tenantDashboardResponse.data.user.initials;
+  const profileName = user?.name ?? fallbackUser.name;
+  const profileAvatar = user?.avatar ?? null;
+  const initials = deriveInitials(profileName, fallbackUser.initials);
   const initialExpandedSections = mainNavSections.reduce(
     (accumulator, section) => ({
       ...accumulator,
@@ -322,15 +845,143 @@ export default function TenantDashboardView() {
     initialExpandedSections
   );
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileDraftName, setProfileDraftName] = useState(profileName);
+  const [profileDraftAvatar, setProfileDraftAvatar] = useState(profileAvatar);
   const [searchValue, setSearchValue] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedAreas, setSelectedAreas] = useState([]);
-  const [selectedHouses, setSelectedHouses] = useState([]);
-  const [selectedUtilities, setSelectedUtilities] = useState([]);
+  const [selectedPropertyTypes, setSelectedPropertyTypes] = useState([]);
+  const [selectedAmenities, setSelectedAmenities] = useState([]);
   const [bedrooms, setBedrooms] = useState(filters.bedrooms);
   const [bathrooms, setBathrooms] = useState(filters.bathrooms);
   const [budgetCurrent, setBudgetCurrent] = useState(filters.budget.current);
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
+  const [sortOption, setSortOption] = useState("newest");
+  const [savedSortOption, setSavedSortOption] = useState("all");
+  const [viewMode, setViewMode] = useState("grid");
+  const [browseVisibleCount, setBrowseVisibleCount] = useState(listingsPageSize);
+  const [savedVisibleCount, setSavedVisibleCount] = useState(listingsPageSize);
+  const [savedHomeIds, setSavedHomeIds] = useState(() =>
+    listings.filter((listing) => listing.isSaved).map((listing) => listing.id)
+  );
+  const [savedTimestamps, setSavedTimestamps] = useState(() =>
+    Object.fromEntries(
+      listings
+        .filter((listing) => listing.isSaved)
+        .map((listing) => [listing.id, listing.savedAt ?? listing.createdAt])
+    )
+  );
+  const [requestModalState, setRequestModalState] = useState({
+    listing: null,
+    mode: "viewing",
+  });
+  const [detailsListing, setDetailsListing] = useState(null);
+  const [landlordReviews, setLandlordReviews] = useState(
+    landlordTrustResponse.data.reviews
+  );
+  const [selectedLandlordId, setSelectedLandlordId] = useState(
+    verifiedLandlords[0]?.id ?? null
+  );
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [isLoadingListings, setIsLoadingListings] = useState(false);
+  const [rentPaymentDetails, setRentPaymentDetails] = useState(initialRentPayment);
+  const [paymentHistory, setPaymentHistory] = useState(initialRentHistory);
+  const [receiptRecords, setReceiptRecords] = useState(initialReceipts);
+  const [selectedReceiptId, setSelectedReceiptId] = useState(
+    initialReceipts[0]?.id ?? null
+  );
+  const [receiptPreviewId, setReceiptPreviewId] = useState(null);
+  const [issueReports, setIssueReports] = useState(initialIssueReports);
+  const [serviceRequests, setServiceRequests] = useState(initialServiceRequests);
+  const [announcements, setAnnouncements] = useState(initialAnnouncements);
+  const [chatConversations, setChatConversations] = useState(
+    initialChatConversations
+  );
+  const [typingConversationId, setTypingConversationId] = useState(null);
+  const chatReplyTimeoutsRef = useRef({});
 
-  useBodyScrollLock(isMobileNavOpen);
+  useBodyScrollLock(
+    isMobileNavOpen ||
+      isProfileModalOpen ||
+      Boolean(requestModalState.listing) ||
+      Boolean(detailsListing) ||
+      Boolean(receiptPreviewId)
+  );
+
+  useEffect(() => {
+    const hasOverlay =
+      isMobileNavOpen ||
+      isProfileModalOpen ||
+      Boolean(requestModalState.listing) ||
+      Boolean(detailsListing) ||
+      Boolean(receiptPreviewId);
+
+    if (!hasOverlay) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (receiptPreviewId) {
+        setReceiptPreviewId(null);
+        return;
+      }
+
+      if (detailsListing) {
+        setDetailsListing(null);
+        return;
+      }
+
+      if (requestModalState.listing) {
+        setRequestModalState({ listing: null, mode: "viewing" });
+        return;
+      }
+
+      if (isProfileModalOpen) {
+        setIsProfileModalOpen(false);
+        return;
+      }
+
+      if (isMobileNavOpen) {
+        setIsMobileNavOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    detailsListing,
+    isMobileNavOpen,
+    isProfileModalOpen,
+    receiptPreviewId,
+    requestModalState.listing,
+  ]);
+
+  useEffect(() => {
+    if (!feedbackMessage) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setFeedbackMessage("");
+    }, 2200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [feedbackMessage]);
+
+  useEffect(
+    () => () => {
+      Object.values(chatReplyTimeoutsRef.current).forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+    },
+    []
+  );
 
   const activeItem =
     allItems.find((item) => item.id === activeItemId) ?? allItems[0];
@@ -342,41 +993,283 @@ export default function TenantDashboardView() {
     preferenceSection;
   const activeSectionTitle = activeSection?.title ?? "Dashboard";
   const activeItemLabel = activeItem?.label ?? defaultActiveItemLabel;
+  const isBrowseHomesView = activeItemLabel === "Browse Homes";
+  const isSavedHomesView = activeItemLabel === "Saved Homes";
+  const isVerifiedLandlordsView = activeItemLabel === "Verified Landlords";
+  const isLandlordReviewsView = activeItemLabel === "Landlord Reviews";
+  const isPayRentView = activeItemLabel === "Pay Rent";
+  const isRentHistoryView = activeItemLabel === "Rent History";
+  const isReceiptsView = activeItemLabel === "Receipts";
+  const isReportIssueView = activeItemLabel === "Report Issue";
+  const isMyRequestsView = activeItemLabel === "My Requests";
+  const isAnnouncementView = activeItemLabel === "Announcement";
+  const isChatWithLandlordView = activeItemLabel === "Chat with Landlord";
   const isActiveSectionExpanded =
     activeSection?.id && activeSection.id !== "preferences"
       ? Boolean(expandedSections[activeSection.id])
       : true;
+  const trimmedSearchValue = searchValue.trim();
+  const searchTerm = trimmedSearchValue.toLowerCase();
+  const areaSuggestions = filters.areaGroups.flatMap((group) =>
+    group.areas.map((area) => ({
+      area,
+      region: group.region,
+    }))
+  );
+  const selectedAreasKey = selectedAreas.join("|");
+  const selectedPropertyTypesKey = selectedPropertyTypes.join("|");
+  const selectedAmenitiesKey = selectedAmenities.join("|");
+  const savedHomeIdsKey = savedHomeIds.join("|");
+  const verifiedLandlordsById = Object.fromEntries(
+    verifiedLandlords.map((landlord) => [landlord.id, landlord])
+  );
+  const selectedLandlord =
+    verifiedLandlordsById[selectedLandlordId] ?? verifiedLandlords[0] ?? null;
+  const previewReceipt =
+    receiptRecords.find((receipt) => receipt.id === receiptPreviewId) ?? null;
 
-  const visibleListings = listings.filter((listing) => {
-    const matchesSearch =
-      !searchValue.trim() ||
-      [listing.title, listing.description, listing.location, listing.area]
-        .join(" ")
-        .toLowerCase()
-        .includes(searchValue.trim().toLowerCase());
+  const isListingSaved = (listingId) => savedHomeIds.includes(listingId);
+  const getLandlordById = (landlordId) => verifiedLandlordsById[landlordId] ?? null;
+  const getReviewsForProperty = (propertyId) =>
+    landlordReviews.filter((review) => review.propertyId === propertyId);
+
+  const doesListingMatchFilters = (listing, options = {}) => {
+    const {
+      ignoreAmenities = false,
+      ignoreAreas = false,
+      ignorePropertyTypes = false,
+    } = options;
+    const searchableText = [
+      listing.title,
+      listing.description,
+      listing.location,
+      listing.area,
+      listing.region,
+      listing.houseType,
+      ...listing.amenities,
+      ...listing.tags,
+    ]
+      .join(" ")
+      .toLowerCase();
+    const matchesSearch = !searchTerm || searchableText.includes(searchTerm);
     const matchesArea =
-      selectedAreas.length === 0 || selectedAreas.includes(listing.area);
-    const matchesHouse =
-      selectedHouses.length === 0 || selectedHouses.includes(listing.houseType);
-    const matchesUtilities =
-      selectedUtilities.length === 0 ||
-      selectedUtilities.every((utility) =>
-        listing.utilities.includes(utility)
-      );
+      ignoreAreas ||
+      selectedAreas.length === 0 ||
+      selectedAreas.includes(listing.area);
+    const matchesPropertyType =
+      ignorePropertyTypes ||
+      selectedPropertyTypes.length === 0 ||
+      selectedPropertyTypes.includes(listing.houseType);
+    const matchesAmenities =
+      ignoreAmenities ||
+      selectedAmenities.length === 0 ||
+      selectedAmenities.every((amenity) => listing.amenities.includes(amenity));
     const matchesBedrooms = bedrooms === 0 || listing.bedrooms >= bedrooms;
     const matchesBathrooms = bathrooms === 0 || listing.bathrooms >= bathrooms;
     const matchesBudget = listing.amountValue <= budgetCurrent;
+    const matchesSaved = !showSavedOnly || isListingSaved(listing.id);
 
     return (
       matchesSearch &&
       matchesArea &&
-      matchesHouse &&
-      matchesUtilities &&
+      matchesPropertyType &&
+      matchesAmenities &&
       matchesBedrooms &&
       matchesBathrooms &&
-      matchesBudget
+      matchesBudget &&
+      matchesSaved
     );
+  };
+
+  const groupedAreaFilters = filters.areaGroups.map((group) => ({
+    ...group,
+    areas: group.areas.map((area) => ({
+      area,
+      count: listings.filter(
+        (listing) =>
+          listing.area === area &&
+          doesListingMatchFilters(listing, { ignoreAreas: true })
+      ).length,
+    })),
+  }));
+
+  const propertyTypeFilters = filters.propertyTypes.map((type) => ({
+    type,
+    count: listings.filter(
+      (listing) =>
+        listing.houseType === type &&
+        doesListingMatchFilters(listing, { ignorePropertyTypes: true })
+    ).length,
+  }));
+
+  const amenityFilters = filters.amenities.map((amenity) => ({
+    amenity,
+    count: listings.filter(
+      (listing) =>
+        listing.amenities.includes(amenity) &&
+        doesListingMatchFilters(listing, { ignoreAmenities: true })
+    ).length,
+  }));
+
+  const visibleSuggestions =
+    searchTerm && isSearchFocused
+      ? areaSuggestions
+          .filter(({ area }) => area.toLowerCase().includes(searchTerm))
+          .slice(0, 6)
+      : [];
+
+  const activeBrowseFilters = [
+    ...(trimmedSearchValue &&
+    !selectedAreas.some((area) => area.toLowerCase() === searchTerm)
+      ? [
+          {
+            key: "search",
+            label: trimmedSearchValue,
+            onRemove: () => setSearchValue(""),
+          },
+        ]
+      : []),
+    ...selectedAreas.map((area) => ({
+      key: `area-${area}`,
+      label: area,
+      onRemove: () =>
+        setSelectedAreas((current) => current.filter((item) => item !== area)),
+    })),
+    ...selectedPropertyTypes.map((type) => ({
+      key: `type-${type}`,
+      label: type,
+      onRemove: () =>
+        setSelectedPropertyTypes((current) =>
+          current.filter((item) => item !== type)
+        ),
+    })),
+    ...selectedAmenities.map((amenity) => ({
+      key: `amenity-${amenity}`,
+      label: amenity,
+      onRemove: () =>
+        setSelectedAmenities((current) =>
+          current.filter((item) => item !== amenity)
+        ),
+    })),
+    ...(bedrooms > 0
+      ? [
+          {
+            key: "bedrooms",
+            label: `${bedrooms}+ Bedrooms`,
+            onRemove: () => setBedrooms(filters.bedrooms),
+          },
+        ]
+      : []),
+    ...(bathrooms > 0
+      ? [
+          {
+            key: "bathrooms",
+            label: `${bathrooms}+ Bathrooms`,
+            onRemove: () => setBathrooms(filters.bathrooms),
+          },
+        ]
+      : []),
+    ...(budgetCurrent < filters.budget.max
+      ? [
+          {
+            key: "budget",
+            label: `Up to GHS ${budgetCurrent.toLocaleString()}`,
+            onRemove: () => setBudgetCurrent(filters.budget.max),
+          },
+        ]
+      : []),
+    ...(showSavedOnly
+      ? [
+          {
+            key: "saved-only",
+            label: "Saved Only",
+            onRemove: () => setShowSavedOnly(false),
+          },
+        ]
+      : []),
+  ];
+
+  const filteredBrowseListings = listings.filter((listing) =>
+    doesListingMatchFilters(listing)
+  );
+
+  const sortedBrowseListings = [...filteredBrowseListings].sort((left, right) => {
+    if (sortOption === "price-asc") {
+      return left.amountValue - right.amountValue;
+    }
+
+    if (sortOption === "price-desc") {
+      return right.amountValue - left.amountValue;
+    }
+
+    return new Date(right.createdAt) - new Date(left.createdAt);
   });
+
+  const savedListings = listings.filter((listing) => isListingSaved(listing.id));
+
+  const sortedSavedListings = [...savedListings].sort((left, right) => {
+    if (savedSortOption === "price-asc") {
+      return left.amountValue - right.amountValue;
+    }
+
+    if (savedSortOption === "recent") {
+      return (
+        new Date(savedTimestamps[right.id] ?? right.createdAt) -
+        new Date(savedTimestamps[left.id] ?? left.createdAt)
+      );
+    }
+
+    return savedHomeIds.indexOf(left.id) - savedHomeIds.indexOf(right.id);
+  });
+
+  const browseListingsToRender = sortedBrowseListings.slice(0, browseVisibleCount);
+  const savedListingsToRender = sortedSavedListings.slice(0, savedVisibleCount);
+
+  useEffect(() => {
+    setBrowseVisibleCount(listingsPageSize);
+  }, [
+    activeItemLabel,
+    bathrooms,
+    bedrooms,
+    budgetCurrent,
+    searchValue,
+    selectedAmenitiesKey,
+    selectedAreasKey,
+    selectedPropertyTypesKey,
+    showSavedOnly,
+    sortOption,
+  ]);
+
+  useEffect(() => {
+    setSavedVisibleCount(listingsPageSize);
+  }, [savedHomeIdsKey, savedSortOption, viewMode]);
+
+  useEffect(() => {
+    if (!(isBrowseHomesView || isSavedHomesView)) {
+      return;
+    }
+
+    setIsLoadingListings(true);
+    const timeoutId = window.setTimeout(() => {
+      setIsLoadingListings(false);
+    }, 180);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    activeItemLabel,
+    bathrooms,
+    bedrooms,
+    budgetCurrent,
+    savedHomeIdsKey,
+    savedSortOption,
+    searchValue,
+    selectedAmenitiesKey,
+    selectedAreasKey,
+    selectedPropertyTypesKey,
+    showSavedOnly,
+    sortOption,
+    viewMode,
+  ]);
 
   const handleSectionToggle = (sectionId) => {
     setExpandedSections((current) => ({
@@ -422,6 +1315,486 @@ export default function TenantDashboardView() {
     selectNavItemByLabel("Settings");
   };
 
+  const handleOpenProfileModal = () => {
+    setProfileDraftName(profileName);
+    setProfileDraftAvatar(profileAvatar);
+    setIsProfileModalOpen(true);
+  };
+
+  const handleCloseProfileModal = () => {
+    setIsProfileModalOpen(false);
+  };
+
+  const handleProfileImageChange = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setProfileDraftAvatar(reader.result);
+      }
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleProfileSave = () => {
+    const nextName = profileDraftName.trim() || profileName;
+
+    updateUser({
+      ...(user ?? {}),
+      avatar: profileDraftAvatar ?? null,
+      email: user?.email ?? "tenant@example.com",
+      id: user?.id ?? "usr_tenant_01",
+      name: nextName,
+      role: user?.role ?? fallbackUser.role,
+    });
+    setIsProfileModalOpen(false);
+  };
+
+  const toggleAreaFilter = (area) => {
+    setSelectedAreas((current) => toggleValue(current, area));
+  };
+
+  const togglePropertyTypeFilter = (type) => {
+    setSelectedPropertyTypes((current) => toggleValue(current, type));
+  };
+
+  const toggleAmenityFilter = (amenity) => {
+    setSelectedAmenities((current) => toggleValue(current, amenity));
+  };
+
+  const handleSuggestionSelect = (area) => {
+    setSearchValue(area);
+    setSelectedAreas((current) =>
+      current.includes(area) ? current : [...current, area]
+    );
+    setIsSearchFocused(false);
+  };
+
+  const handleBedroomChange = (event) => {
+    setBedrooms(
+      clampValue(parseNumberInput(event.target.value), 0, roomCountMax)
+    );
+  };
+
+  const handleBathroomChange = (event) => {
+    setBathrooms(
+      clampValue(parseNumberInput(event.target.value), 0, roomCountMax)
+    );
+  };
+
+  const adjustBudget = (direction) => {
+    setBudgetCurrent((current) =>
+      clampValue(
+        current + direction * budgetStep,
+        filters.budget.min,
+        filters.budget.max
+      )
+    );
+  };
+
+  const handleBudgetInputChange = (event) => {
+    setBudgetCurrent(
+      clampValue(
+        parseNumberInput(event.target.value),
+        filters.budget.min,
+        filters.budget.max
+      )
+    );
+  };
+
+  const handleBudgetRangeChange = (event) => {
+    setBudgetCurrent(
+      clampValue(
+        Number(event.target.value),
+        filters.budget.min,
+        filters.budget.max
+      )
+    );
+  };
+
+  const handleBudgetWheel = (event) => {
+    event.preventDefault();
+    adjustBudget(event.deltaY < 0 ? 1 : -1);
+  };
+
+  const resetBrowseFilters = () => {
+    setSearchValue("");
+    setSelectedAreas([]);
+    setSelectedPropertyTypes([]);
+    setSelectedAmenities([]);
+    setBedrooms(filters.bedrooms);
+    setBathrooms(filters.bathrooms);
+    setBudgetCurrent(filters.budget.max);
+    setShowSavedOnly(false);
+  };
+
+  const handleSelectPaymentMethod = (methodId) => {
+    setRentPaymentDetails((current) => ({
+      ...current,
+      selectedPaymentMethodId: methodId,
+    }));
+  };
+
+  const handleToggleReminder = () => {
+    let nextReminderState = false;
+
+    setRentPaymentDetails((current) => {
+      nextReminderState = !current.reminderEnabled;
+
+      return {
+        ...current,
+        reminderEnabled: nextReminderState,
+      };
+    });
+
+    setFeedbackMessage(
+      nextReminderState
+        ? "We will remind you before the due date."
+        : "Due date reminder turned off."
+    );
+  };
+
+  const handleSelectReceipt = (receiptId) => {
+    setSelectedReceiptId(receiptId);
+  };
+
+  const handleOpenReceiptPreview = (receiptId) => {
+    setSelectedReceiptId(receiptId);
+    setReceiptPreviewId(receiptId);
+  };
+
+  const handleCloseReceiptPreview = () => {
+    setReceiptPreviewId(null);
+  };
+
+  const handleDownloadReceipt = (receipt) => {
+    if (!receipt) {
+      return;
+    }
+
+    const receiptWindow = window.open("", "_blank", "noopener,noreferrer");
+
+    if (!receiptWindow) {
+      setFeedbackMessage("Please allow pop-ups to save the receipt as PDF.");
+      return;
+    }
+
+    receiptWindow.document.write(buildPrintableReceiptHtml(receipt));
+    receiptWindow.document.close();
+    setFeedbackMessage(`Receipt ${receipt.id} is ready to print or save as PDF.`);
+  };
+
+  const handleViewReceiptFromHistory = (receiptId) => {
+    handleOpenReceiptPreview(receiptId);
+    selectNavItemByLabel("Receipts");
+  };
+
+  const handlePayRent = () => {
+    if (rentPaymentDetails.paymentStatus === "Paid") {
+      setFeedbackMessage("This rent invoice is already marked as paid.");
+      return;
+    }
+
+    const paymentDate = new Date().toISOString().slice(0, 10);
+    const selectedMethod =
+      rentPaymentDetails.paymentMethods.find(
+        (method) => method.id === rentPaymentDetails.selectedPaymentMethodId
+      ) ?? rentPaymentDetails.paymentMethods[0];
+    const receiptId = `RCT-${paymentDate.replace(/-/g, "")}-${String(
+      receiptRecords.length + 1
+    ).padStart(3, "0")}`;
+    const nextReceipt = {
+      amount: rentPaymentDetails.totalAmount,
+      id: receiptId,
+      landlordName: rentPaymentDetails.landlordName,
+      paymentDate,
+      paymentMethod: selectedMethod?.label ?? "Mobile Money",
+      paymentBreakdown: {
+        rent: rentPaymentDetails.rentAmount,
+        utilities: rentPaymentDetails.utilitiesAmount,
+      },
+      propertyDetails: rentPaymentDetails.propertyDetails,
+      propertyName: rentPaymentDetails.propertyName,
+      status: "Successful",
+      tenantName: rentPaymentDetails.tenantName,
+      totalPaid: rentPaymentDetails.totalAmount,
+    };
+    const nextHistoryEntry = {
+      amountPaid: rentPaymentDetails.totalAmount,
+      id: `rent-history-${paymentHistory.length + 1}`,
+      paymentDate,
+      paymentMethod: selectedMethod?.label ?? "Mobile Money",
+      propertyName: rentPaymentDetails.propertyName,
+      receiptId,
+      status: "Successful",
+    };
+
+    setRentPaymentDetails((current) => ({
+      ...current,
+      lastReceiptId: receiptId,
+      outstandingAmount: 0,
+      paymentStatus: "Paid",
+    }));
+    setPaymentHistory((current) => [nextHistoryEntry, ...current]);
+    setReceiptRecords((current) => [nextReceipt, ...current]);
+    setSelectedReceiptId(receiptId);
+    setFeedbackMessage(
+      `Rent payment recorded successfully via ${selectedMethod?.label ?? "your selected method"}.`
+    );
+  };
+
+  const handleSubmitIssueReport = ({
+    attachments = [],
+    category,
+    description,
+    priority,
+    title,
+  }) => {
+    const nextIssue = {
+      attachments,
+      category,
+      description,
+      id: `issue-${Date.now()}`,
+      priority,
+      status: "Pending",
+      submittedAt: new Date().toISOString(),
+      title,
+    };
+
+    setIssueReports((current) => [nextIssue, ...current]);
+    setFeedbackMessage("Issue report submitted successfully.");
+  };
+
+  const handleCreateServiceRequest = ({
+    attachments = [],
+    details,
+    requestType,
+    title,
+  }) => {
+    const nextRequest = {
+      attachments,
+      details,
+      id: `request-${Date.now()}`,
+      requestType,
+      response: "",
+      status: "Pending",
+      submittedAt: new Date().toISOString(),
+      title,
+    };
+
+    setServiceRequests((current) => [nextRequest, ...current]);
+    setFeedbackMessage("New service request created.");
+  };
+
+  const handleOpenAnnouncement = (announcementId) => {
+    setAnnouncements((current) =>
+      current.map((announcement) =>
+        announcement.id === announcementId
+          ? { ...announcement, isRead: true }
+          : announcement
+      )
+    );
+  };
+
+  const handleOpenConversation = (conversationId) => {
+    setChatConversations((current) =>
+      current.map((conversation) =>
+        conversation.id === conversationId
+          ? {
+              ...conversation,
+              messages: conversation.messages.map((message) =>
+                message.sender === "landlord"
+                  ? { ...message, readByTenant: true }
+                  : message
+              ),
+            }
+          : conversation
+      )
+    );
+  };
+
+  const handleSendChatMessage = (conversationId, { attachments = [], text }) => {
+    const trimmedText = text.trim();
+
+    if (!trimmedText && attachments.length === 0) {
+      return;
+    }
+
+    const sentAt = new Date().toISOString();
+    const nextTenantMessage = {
+      attachments,
+      deliveryStatus: "Sent",
+      id: `message-${Date.now()}`,
+      sender: "tenant",
+      text: trimmedText,
+      timestamp: sentAt,
+    };
+
+    setChatConversations((current) =>
+      current.map((conversation) =>
+        conversation.id === conversationId
+          ? {
+              ...conversation,
+              messages: [...conversation.messages, nextTenantMessage],
+            }
+          : conversation
+      )
+    );
+    setTypingConversationId(conversationId);
+
+    if (chatReplyTimeoutsRef.current[conversationId]) {
+      window.clearTimeout(chatReplyTimeoutsRef.current[conversationId]);
+    }
+
+    chatReplyTimeoutsRef.current[conversationId] = window.setTimeout(() => {
+      const replyText = trimmedText
+        ? `Thanks, ${profileName.split(" ")[0]}. I have seen your message and will follow up shortly.`
+        : `Thanks, ${profileName.split(" ")[0]}. I received the attachment and will review it shortly.`;
+
+      setTypingConversationId((current) =>
+        current === conversationId ? null : current
+      );
+      setChatConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === conversationId
+            ? {
+                ...conversation,
+                messages: [
+                  ...conversation.messages.map((message) =>
+                    message.sender === "tenant"
+                      ? { ...message, deliveryStatus: "Read" }
+                      : message
+                  ),
+                  {
+                    id: `message-reply-${Date.now()}`,
+                    readByTenant: false,
+                    sender: "landlord",
+                    text: replyText,
+                    timestamp: new Date().toISOString(),
+                  },
+                ],
+              }
+            : conversation
+        )
+      );
+    }, 1200);
+  };
+
+  const handleToggleSave = (listing) => {
+    const isSaved = isListingSaved(listing.id);
+
+    setSavedHomeIds((current) =>
+      isSaved
+        ? current.filter((id) => id !== listing.id)
+        : [listing.id, ...current.filter((id) => id !== listing.id)]
+    );
+
+    setSavedTimestamps((current) => {
+      const nextState = { ...current };
+
+      if (isSaved) {
+        delete nextState[listing.id];
+      } else {
+        nextState[listing.id] = new Date().toISOString();
+      }
+
+      return nextState;
+    });
+
+    setFeedbackMessage(isSaved ? "Removed from saved" : "Added to saved homes");
+  };
+
+  const openRequestModal = (listing, mode = "viewing") => {
+    setRequestModalState({ listing, mode });
+  };
+
+  const closeRequestModal = () => {
+    setRequestModalState({ listing: null, mode: "viewing" });
+  };
+
+  const handleSubmitRequest = ({ listing, mode }) => {
+    setFeedbackMessage(
+      mode === "contact"
+        ? `Message sent for ${listing.title}`
+        : `Viewing requested for ${listing.title}`
+    );
+    closeRequestModal();
+  };
+
+  const openDetailsModal = (listing) => {
+    setDetailsListing(listing);
+  };
+
+  const closeDetailsModal = () => {
+    setDetailsListing(null);
+  };
+
+  const handleOpenRequestFromDetails = (listing, mode) => {
+    setDetailsListing(null);
+    openRequestModal(listing, mode);
+  };
+
+  const anonymizeTenantName = (name) => {
+    const parts = String(name ?? "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (!parts.length) {
+      return "Anonymous Tenant";
+    }
+
+    if (parts.length === 1) {
+      return `${parts[0][0]}. Tenant`;
+    }
+
+    return `${parts[0][0]}. ${parts.at(-1)}`;
+  };
+
+  const handleOpenLandlordProfile = (landlordId) => {
+    if (!landlordId) {
+      return;
+    }
+
+    setSelectedLandlordId(landlordId);
+    setDetailsListing(null);
+    selectNavItemByLabel("Verified Landlords");
+  };
+
+  const handleOpenLandlordReviews = () => {
+    selectNavItemByLabel("Landlord Reviews");
+  };
+
+  const handleSubmitLandlordReview = ({
+    comment,
+    landlordId,
+    propertyId,
+    rating,
+    tenantName,
+  }) => {
+    setLandlordReviews((current) => [
+      {
+        id: `review-${Date.now()}`,
+        landlordId,
+        propertyId,
+        tenantName: anonymizeTenantName(tenantName || profileName),
+        rating,
+        comment,
+        date: new Date().toISOString(),
+      },
+      ...current,
+    ]);
+    setSelectedLandlordId(landlordId);
+    setFeedbackMessage("Review submitted");
+  };
+
   const renderBrowseHomesView = () => (
     <>
       <div className="lg:hidden">
@@ -431,242 +1804,776 @@ export default function TenantDashboardView() {
         <p className="mt-1 text-sm text-[#3656B7]">{activeItemLabel}</p>
       </div>
 
-      <div className="mt-4 lg:mt-0">
-        <div className="relative max-w-[42rem]">
-          <Search className="pointer-events-none absolute left-5 top-1/2 size-6 -translate-y-1/2 text-[#18399F]" />
+      <section className="mt-4 rounded-[2rem] border border-[#DCE5F7] bg-[linear-gradient(180deg,#FFFFFF_0%,#F6FAFF_100%)] p-5 shadow-[0_20px_40px_rgba(15,32,86,0.08)] sm:p-6">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#5C7BD9]">
+            Browse Homes
+          </p>
+          <h2 className="text-2xl font-semibold text-[#102A74] sm:text-[2rem]">
+            Explore every available listing with instant filters and quick actions.
+          </h2>
+          <p className="max-w-2xl text-sm leading-7 text-slate-500">
+            Search by area, refine by property needs, save favorites, and request
+            a viewing without leaving the page.
+          </p>
+        </div>
+
+        <div className="relative mt-6">
+          <Search className="pointer-events-none absolute left-5 top-1/2 z-10 size-5 -translate-y-1/2 text-[#18399F]" />
           <input
             type="text"
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Search for homes, neighborhoods, or landlords"
-            className="h-14 w-full rounded-[1rem] bg-[#D9D9D9] pl-14 pr-5 text-sm text-slate-700 outline-none placeholder:text-slate-500"
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => {
+              window.setTimeout(() => setIsSearchFocused(false), 120);
+            }}
+            placeholder="Search areas (e.g. East Legon, Tema, Kasoa)"
+            className="h-16 w-full rounded-[1.25rem] border border-[#DCE5F7] bg-white pl-14 pr-14 text-base text-slate-700 outline-none transition focus:border-[#18399F] focus:shadow-[0_12px_30px_rgba(24,57,159,0.12)] placeholder:text-slate-400"
           />
-        </div>
-      </div>
-
-      <div className="mt-7 grid gap-8 xl:grid-cols-[15.5rem_minmax(0,1fr)]">
-        <section className="space-y-6">
-          <div className="flex items-center gap-1 text-sm font-bold uppercase text-[#111827]">
-            <span>Filter By</span>
-            <ChevronDown className="size-4 text-[#18399F]" />
-          </div>
-
-          <div className="space-y-4 text-[0.9rem]">
-            <div>
-              <div className="flex items-center gap-1 font-semibold text-[#18399F]">
-                <span>Location</span>
-                <ChevronRight className="size-4" />
-              </div>
-              <div className="mt-1 pl-4 text-[#3656B7]">
-                <div className="flex items-center gap-1">
-                  <span>Map</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div className="font-semibold text-[#18399F]">Choose Area</div>
-              <div className="mt-2 space-y-1.5 pl-4 text-[#3656B7]">
-                {filters.areas.map((area) => (
-                  <label key={area} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedAreas.includes(area)}
-                      onChange={() =>
-                        setSelectedAreas((current) => toggleValue(current, area))
-                      }
-                      className="size-3.5 accent-[#18399F]"
-                    />
-                    <span>{area}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="font-semibold text-[#18399F]">Houses</div>
-              <div className="mt-2 space-y-1.5 pl-4 text-[#3656B7]">
-                {filters.houses.map((house) => (
-                  <label key={house} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedHouses.includes(house)}
-                      onChange={() =>
-                        setSelectedHouses((current) =>
-                          toggleValue(current, house)
-                        )
-                      }
-                      className="size-3.5 accent-[#18399F]"
-                    />
-                    <span>{house}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="font-semibold text-[#18399F]">Utilities</div>
-              <div className="mt-2 space-y-1.5 pl-4 text-[#3656B7]">
-                {filters.utilities.map((utility) => (
-                  <label key={utility} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedUtilities.includes(utility)}
-                      onChange={() =>
-                        setSelectedUtilities((current) =>
-                          toggleValue(current, utility)
-                        )
-                      }
-                      className="size-3.5 accent-[#18399F]"
-                    />
-                    <span>{utility}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="font-semibold text-[#18399F]">Bedroom</div>
-              <div className="mt-2 pl-4">
-                <CounterControl
-                  value={bedrooms}
-                  onIncrement={() => setBedrooms((current) => current + 1)}
-                  onDecrement={() =>
-                    setBedrooms((current) => Math.max(0, current - 1))
-                  }
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="font-semibold text-[#18399F]">Bathrooms</div>
-              <div className="mt-2 pl-4">
-                <CounterControl
-                  value={bathrooms}
-                  onIncrement={() => setBathrooms((current) => current + 1)}
-                  onDecrement={() =>
-                    setBathrooms((current) => Math.max(0, current - 1))
-                  }
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="font-semibold text-[#18399F]">Budget</div>
-              <div className="mt-2 rounded-[1rem] border border-[#DCE5F7] bg-white px-4 py-4 shadow-[0_10px_24px_rgba(15,32,86,0.05)]">
-                <div className="flex items-end justify-between text-xs text-[#3656B7]">
-                  <div>
-                    <p>GHS Min</p>
-                    <p className="text-slate-400">{filters.budget.min}</p>
-                  </div>
-                  <div className="text-right">
-                    <p>GHS Max</p>
-                    <p className="text-slate-400">{filters.budget.max}</p>
-                  </div>
-                </div>
-                <div className="mt-4 h-1.5 rounded-full bg-[#DCE5F7]">
-                  <div
-                    className="h-1.5 rounded-full bg-[#18399F]"
-                    style={{
-                      width: `${Math.max(
-                        6,
-                        (budgetCurrent / filters.budget.max) * 100
-                      )}%`,
-                    }}
-                  />
-                </div>
-                <div className="mt-4 flex items-center justify-between gap-3 text-xs text-[#3656B7]">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setBudgetCurrent((current) =>
-                        Math.min(filters.budget.max, current + 500)
-                      )
-                    }
-                    className="grid size-4 place-items-center rounded-[0.2rem] bg-[#18399F] text-white"
-                    aria-label="Increase maximum budget"
-                  >
-                    <Plus className="size-2.5" />
-                  </button>
-                  <span className="rounded-[0.2rem] bg-[#D9D9D9] px-2 py-1 text-slate-600">
-                    {budgetCurrent}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setBudgetCurrent((current) =>
-                        Math.max(filters.budget.min, current - 500)
-                      )
-                    }
-                    className="grid size-4 place-items-center rounded-[0.2rem] bg-[#18399F] text-white"
-                    aria-label="Decrease maximum budget"
-                  >
-                    <Minus className="size-2.5" />
-                  </button>
-                  <span className="text-slate-400">/ Yr</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-5">
-          <article className="relative overflow-hidden rounded-[2rem] bg-[linear-gradient(160deg,#1C405D_0%,#213D54_36%,#0A224A_100%)] p-5 text-white shadow-[0_22px_44px_rgba(13,29,76,0.16)]">
-            <div
-              className="pointer-events-none absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(122,190,255,0.15)_1px,transparent_1px),linear-gradient(90deg,rgba(122,190,255,0.12)_1px,transparent_1px)] [background-size:36px_36px]"
-              aria-hidden="true"
-            />
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-[linear-gradient(180deg,transparent,rgba(4,15,44,0.6))]"
-              aria-hidden="true"
-            />
-            <div className="relative min-h-[13.5rem]">
-              {map.labels.map((label) => (
-                <span
-                  key={label.name}
-                  className="absolute text-sm font-semibold text-white/90"
-                  style={{ top: label.top, left: label.left }}
-                >
-                  {label.name}
-                </span>
-              ))}
-            </div>
-          </article>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-[#DCE5F7] bg-[#F9FBFF] px-4 py-3 text-sm text-slate-500">
-            <span>Showing {visibleListings.length} home(s)</span>
+          {searchValue ? (
             <button
               type="button"
-              onClick={() => {
-                setSearchValue("");
-                setSelectedAreas([]);
-                setSelectedHouses([]);
-                setSelectedUtilities([]);
-                setBedrooms(filters.bedrooms);
-                setBathrooms(filters.bathrooms);
-                setBudgetCurrent(filters.budget.current);
-              }}
-              className="font-semibold text-[#18399F] underline underline-offset-4"
+              onClick={() => setSearchValue("")}
+              className="absolute right-4 top-1/2 z-10 grid size-8 -translate-y-1/2 place-items-center rounded-full text-[#18399F] transition-colors duration-300 hover:bg-[#EEF3FF]"
+              aria-label="Clear search"
             >
-              Reset Filters
+              <X className="size-4" />
+            </button>
+          ) : null}
+
+          {visibleSuggestions.length > 0 ? (
+            <div className="absolute inset-x-0 top-[calc(100%+0.6rem)] z-20 overflow-hidden rounded-[1.4rem] border border-[#DCE5F7] bg-white shadow-[0_22px_44px_rgba(15,32,86,0.12)]">
+              {visibleSuggestions.map(({ area, region }) => {
+                const count = listings.filter(
+                  (listing) =>
+                    listing.area === area &&
+                    doesListingMatchFilters(listing, { ignoreAreas: true })
+                ).length;
+
+                return (
+                  <button
+                    key={createId(`${region}-${area}`)}
+                    type="button"
+                    onClick={() => handleSuggestionSelect(area)}
+                    className="flex w-full items-center justify-between gap-3 border-b border-[#EEF3FF] px-4 py-3 text-left transition-colors duration-300 last:border-b-0 hover:bg-[#F7FAFF]"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-[#102A74]">
+                        {area}
+                      </p>
+                      <p className="text-xs text-slate-500">{region}</p>
+                    </div>
+                    <span className="rounded-full bg-[#EEF3FF] px-3 py-1 text-xs font-semibold text-[#3656B7]">
+                      {count} listing{count === 1 ? "" : "s"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+
+        {activeBrowseFilters.length > 0 ? (
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            {activeBrowseFilters.map((filter) => (
+              <ActiveFilterChip
+                key={filter.key}
+                label={filter.label}
+                onRemove={filter.onRemove}
+              />
+            ))}
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#5C7BD9]">
+            Popular Areas
+          </span>
+          {filters.popularAreas.map((area) => (
+            <SelectableFilterChip
+              key={area}
+              active={selectedAreas.includes(area)}
+              onClick={() => toggleAreaFilter(area)}
+            >
+              {area}
+            </SelectableFilterChip>
+          ))}
+          <SelectableFilterChip
+            active={showSavedOnly}
+            onClick={() => setShowSavedOnly((current) => !current)}
+            className="ml-auto"
+          >
+            Show Saved Only
+          </SelectableFilterChip>
+        </div>
+      </section>
+
+      <div className="mt-7 grid gap-6 xl:grid-cols-[20rem_minmax(0,1fr)]">
+        <aside className="rounded-[2rem] border border-[#DCE5F7] bg-white p-5 shadow-[0_16px_32px_rgba(15,32,86,0.06)] xl:sticky xl:top-5 xl:self-start">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#5C7BD9]">
+                Filters
+              </p>
+              <h3 className="mt-2 text-lg font-semibold text-[#102A74]">
+                Refine results
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={resetBrowseFilters}
+              className="text-sm font-semibold text-[#18399F] underline underline-offset-4"
+            >
+              Reset
             </button>
           </div>
 
-          <div className="space-y-5">
-            {visibleListings.length > 0 ? (
-              visibleListings.map((listing) => (
-                <TenantListingCard key={listing.id} listing={listing} />
-              ))
-            ) : (
-              <div className="rounded-[1.8rem] border border-dashed border-[#C9D4EC] bg-[#F9FBFF] px-6 py-12 text-center text-sm leading-7 text-slate-500">
-                No homes match your current filters yet. Adjust the search,
-                budget, or checkboxes to see more results.
+          <div className="mt-6 space-y-6">
+            <SidebarFilterSection title="Area">
+              <div className="space-y-5">
+                {groupedAreaFilters.map((group) => (
+                  <div key={group.region} className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5C7BD9]">
+                      {group.region}
+                    </p>
+
+                    <div className="space-y-2">
+                      {group.areas.map(({ area, count }) => {
+                        const isSelected = selectedAreas.includes(area);
+                        const isDisabled = count === 0 && !isSelected;
+
+                        return (
+                          <label
+                            key={area}
+                            className={classNames(
+                              "flex cursor-pointer items-center justify-between gap-3 rounded-[1rem] border px-3 py-3 transition-colors duration-300",
+                              isSelected
+                                ? "border-[#18399F] bg-[#EEF4FF]"
+                                : "border-[#E5ECF8] bg-[#FBFDFF] hover:border-[#C9D4EC]",
+                              isDisabled && "cursor-not-allowed opacity-50"
+                            )}
+                          >
+                            <span className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                disabled={isDisabled}
+                                onChange={() => toggleAreaFilter(area)}
+                                className="size-4 rounded accent-[#18399F]"
+                              />
+                              <span className="text-sm font-medium text-slate-600">
+                                {area}
+                              </span>
+                            </span>
+                            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#3656B7]">
+                              {count}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
+            </SidebarFilterSection>
+
+            <SidebarFilterSection title="Price range">
+              <div className="rounded-[1.2rem] border border-[#DCE5F7] bg-[#F8FBFF] p-4">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5C7BD9]">
+                      Max budget
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-[#102A74]">
+                      GHS {budgetCurrent.toLocaleString()}
+                    </p>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    GHS {filters.budget.min.toLocaleString()} -{" "}
+                    {filters.budget.max.toLocaleString()}
+                  </p>
+                </div>
+
+                <div className="mt-4" onWheel={handleBudgetWheel}>
+                  <label htmlFor="tenant-budget-range" className="sr-only">
+                    Budget slider
+                  </label>
+                  <input
+                    id="tenant-budget-range"
+                    type="range"
+                    min={filters.budget.min}
+                    max={filters.budget.max}
+                    step={budgetStep}
+                    value={budgetCurrent}
+                    onChange={handleBudgetRangeChange}
+                    className="h-2 w-full cursor-ew-resize accent-[#18399F]"
+                  />
+                </div>
+
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => adjustBudget(-1)}
+                    className="grid size-8 shrink-0 place-items-center rounded-full border border-[#18399F] bg-white text-[#18399F] transition-colors duration-300 hover:bg-[#18399F] hover:text-white"
+                    aria-label="Decrease maximum budget"
+                  >
+                    <Minus className="size-4" />
+                  </button>
+                  <label htmlFor="tenant-budget-input" className="sr-only">
+                    Maximum budget
+                  </label>
+                  <input
+                    id="tenant-budget-input"
+                    type="number"
+                    min={filters.budget.min}
+                    max={filters.budget.max}
+                    step={budgetStep}
+                    value={budgetCurrent}
+                    onChange={handleBudgetInputChange}
+                    className="h-11 w-full rounded-full border border-[#DCE5F7] px-4 text-sm font-semibold text-[#18399F] outline-none transition focus:border-[#18399F] [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => adjustBudget(1)}
+                    className="grid size-8 shrink-0 place-items-center rounded-full border border-[#18399F] bg-white text-[#18399F] transition-colors duration-300 hover:bg-[#18399F] hover:text-white"
+                    aria-label="Increase maximum budget"
+                  >
+                    <Plus className="size-4" />
+                  </button>
+                </div>
+              </div>
+            </SidebarFilterSection>
+
+            <SidebarFilterSection title="Property type">
+              <div className="space-y-2">
+                {propertyTypeFilters.map(({ count, type }) => {
+                  const isSelected = selectedPropertyTypes.includes(type);
+                  const isDisabled = count === 0 && !isSelected;
+
+                  return (
+                    <label
+                      key={type}
+                      className={classNames(
+                        "flex cursor-pointer items-center justify-between gap-3 rounded-[1rem] border px-3 py-3 transition-colors duration-300",
+                        isSelected
+                          ? "border-[#18399F] bg-[#EEF4FF]"
+                          : "border-[#E5ECF8] bg-[#FBFDFF] hover:border-[#C9D4EC]",
+                        isDisabled && "cursor-not-allowed opacity-50"
+                      )}
+                    >
+                      <span className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={isDisabled}
+                          onChange={() => togglePropertyTypeFilter(type)}
+                          className="size-4 rounded accent-[#18399F]"
+                        />
+                        <span className="text-sm font-medium text-slate-600">
+                          {type}
+                        </span>
+                      </span>
+                      <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#3656B7]">
+                        {count}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </SidebarFilterSection>
+
+            <SidebarFilterSection title="Bedrooms / Bathrooms">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5C7BD9]">
+                    Bedrooms
+                  </p>
+                  <CounterControl
+                    inputId="tenant-bedroom-count"
+                    label="bedrooms"
+                    value={bedrooms}
+                    onChange={handleBedroomChange}
+                    onIncrement={() =>
+                      setBedrooms((current) =>
+                        clampValue(current + 1, 0, roomCountMax)
+                      )
+                    }
+                    onDecrement={() =>
+                      setBedrooms((current) =>
+                        clampValue(current - 1, 0, roomCountMax)
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5C7BD9]">
+                    Bathrooms
+                  </p>
+                  <CounterControl
+                    inputId="tenant-bathroom-count"
+                    label="bathrooms"
+                    value={bathrooms}
+                    onChange={handleBathroomChange}
+                    onIncrement={() =>
+                      setBathrooms((current) =>
+                        clampValue(current + 1, 0, roomCountMax)
+                      )
+                    }
+                    onDecrement={() =>
+                      setBathrooms((current) =>
+                        clampValue(current - 1, 0, roomCountMax)
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            </SidebarFilterSection>
+
+            <SidebarFilterSection title="Amenities">
+              <div className="space-y-2">
+                {amenityFilters.map(({ amenity, count }) => {
+                  const isSelected = selectedAmenities.includes(amenity);
+                  const isDisabled = count === 0 && !isSelected;
+
+                  return (
+                    <label
+                      key={amenity}
+                      className={classNames(
+                        "flex cursor-pointer items-center justify-between gap-3 rounded-[1rem] border px-3 py-3 transition-colors duration-300",
+                        isSelected
+                          ? "border-[#18399F] bg-[#EEF4FF]"
+                          : "border-[#E5ECF8] bg-[#FBFDFF] hover:border-[#C9D4EC]",
+                        isDisabled && "cursor-not-allowed opacity-50"
+                      )}
+                    >
+                      <span className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={isDisabled}
+                          onChange={() => toggleAmenityFilter(amenity)}
+                          className="size-4 rounded accent-[#18399F]"
+                        />
+                        <span className="text-sm font-medium text-slate-600">
+                          {amenity}
+                        </span>
+                      </span>
+                      <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#3656B7]">
+                        {count}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </SidebarFilterSection>
           </div>
+        </aside>
+
+        <section className="space-y-5">
+          <div className="rounded-[2rem] border border-[#DCE5F7] bg-white px-5 py-5 shadow-[0_16px_32px_rgba(15,32,86,0.06)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#5C7BD9]">
+                  Listings
+                </p>
+                <h3 className="mt-2 text-2xl font-semibold text-[#102A74]">
+                  Showing {sortedBrowseListings.length} home
+                  {sortedBrowseListings.length === 1 ? "" : "s"}
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  {selectedAreas.length > 0
+                    ? `Filtered in ${selectedAreas.join(", ")}`
+                    : "Browse all available homes across the listed regions."}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <SelectableFilterChip
+                  active={sortOption === "newest"}
+                  onClick={() => setSortOption("newest")}
+                >
+                  Newest
+                </SelectableFilterChip>
+                <SelectableFilterChip
+                  active={sortOption === "price-asc"}
+                  onClick={() => setSortOption("price-asc")}
+                >
+                  Price: Low-High
+                </SelectableFilterChip>
+                <SelectableFilterChip
+                  active={sortOption === "price-desc"}
+                  onClick={() => setSortOption("price-desc")}
+                >
+                  Price: High-Low
+                </SelectableFilterChip>
+                <div className="ml-2 flex items-center gap-2 rounded-full border border-[#D7E0F3] bg-[#F8FBFF] p-1">
+                  <DashboardActionButton
+                    onClick={() => setViewMode("grid")}
+                    className={classNames(
+                      "size-9 border-transparent",
+                      viewMode === "grid" && "bg-[#18399F] text-white hover:text-white"
+                    )}
+                    aria-label="Grid view"
+                  >
+                    <LayoutGrid className="size-4" />
+                  </DashboardActionButton>
+                  <DashboardActionButton
+                    onClick={() => setViewMode("list")}
+                    className={classNames(
+                      "size-9 border-transparent",
+                      viewMode === "list" && "bg-[#18399F] text-white hover:text-white"
+                    )}
+                    aria-label="List view"
+                  >
+                    <List className="size-4" />
+                  </DashboardActionButton>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {isLoadingListings ? (
+            <div
+              className={classNames(
+                viewMode === "grid"
+                  ? "grid gap-5 md:grid-cols-2"
+                  : "space-y-5"
+              )}
+            >
+              {Array.from({ length: 4 }).map((_, index) => (
+                <ListingSkeletonCard
+                  key={`browse-skeleton-${index}`}
+                  viewMode={viewMode}
+                />
+              ))}
+            </div>
+          ) : browseListingsToRender.length > 0 ? (
+            <>
+              <div
+                className={classNames(
+                  "gap-5",
+                  viewMode === "grid"
+                    ? "grid md:grid-cols-2"
+                    : "space-y-5"
+                )}
+              >
+                {browseListingsToRender.map((listing) => {
+                  const landlord = getLandlordById(listing.landlordId);
+                  const ratingSummary = getRatingSummary(
+                    getReviewsForProperty(listing.id)
+                  );
+
+                  return (
+                    <TenantListingCard
+                      key={listing.id}
+                      listing={listing}
+                      isSaved={isListingSaved(listing.id)}
+                      isVerifiedLandlord={Boolean(landlord)}
+                      landlordName={landlord?.name ?? ""}
+                      onContact={() => openRequestModal(listing, "contact")}
+                      onRequestViewing={() => openRequestModal(listing, "viewing")}
+                      onToggleSave={() => handleToggleSave(listing)}
+                      onViewDetails={() => openDetailsModal(listing)}
+                      onViewLandlordProfile={
+                        landlord
+                          ? () => handleOpenLandlordProfile(landlord.id)
+                          : undefined
+                      }
+                      ratingSummary={ratingSummary}
+                      saveLabel={
+                        isListingSaved(listing.id) ? "Remove saved home" : "Save home"
+                      }
+                      viewMode={viewMode}
+                    />
+                  );
+                })}
+              </div>
+
+              {sortedBrowseListings.length > browseVisibleCount ? (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setBrowseVisibleCount((current) => current + listingsPageSize)
+                    }
+                    className="rounded-full bg-[#18399F] px-5 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#102A74]"
+                  >
+                    Load More
+                  </button>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="rounded-[1.8rem] border border-dashed border-[#C9D4EC] bg-[#F9FBFF] px-6 py-12 text-center">
+              <p className="text-lg font-semibold text-[#102A74]">
+                No homes match your filters
+              </p>
+              <p className="mt-3 text-sm leading-7 text-slate-500">
+                Try broadening the search, clearing a few filters, or increasing
+                your budget range.
+              </p>
+              <button
+                type="button"
+                onClick={resetBrowseFilters}
+                className="mt-6 rounded-full bg-[#18399F] px-5 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#102A74]"
+              >
+                Clear Filters
+              </button>
+            </div>
+          )}
         </section>
       </div>
     </>
+  );
+
+  const renderSavedHomesView = () => (
+    <section className="space-y-6">
+      <div className="rounded-[2rem] border border-[#DCE5F7] bg-[linear-gradient(180deg,#FFFFFF_0%,#F6FAFF_100%)] p-5 shadow-[0_20px_40px_rgba(15,32,86,0.08)] sm:p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#5C7BD9]">
+          Saved Homes
+        </p>
+        <h2 className="mt-2 text-2xl font-semibold text-[#102A74] sm:text-[2rem]">
+          Saved Homes
+        </h2>
+        <p className="mt-2 text-sm leading-7 text-slate-500">
+          Your favorite properties in one place
+        </p>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-lg font-semibold text-[#102A74]">
+              You have {savedListings.length} saved home
+              {savedListings.length === 1 ? "" : "s"}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              Revisit homes you like, compare options, and take action quickly.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <SelectableFilterChip
+              active={savedSortOption === "all"}
+              onClick={() => setSavedSortOption("all")}
+            >
+              All
+            </SelectableFilterChip>
+            <SelectableFilterChip
+              active={savedSortOption === "recent"}
+              onClick={() => setSavedSortOption("recent")}
+            >
+              Recently Saved
+            </SelectableFilterChip>
+            <SelectableFilterChip
+              active={savedSortOption === "price-asc"}
+              onClick={() => setSavedSortOption("price-asc")}
+            >
+              Price Low-High
+            </SelectableFilterChip>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex items-center gap-2 rounded-full border border-[#D7E0F3] bg-[#F8FBFF] p-1">
+          <DashboardActionButton
+            onClick={() => setViewMode("grid")}
+            className={classNames(
+              "size-9 border-transparent",
+              viewMode === "grid" && "bg-[#18399F] text-white hover:text-white"
+            )}
+            aria-label="Grid view"
+          >
+            <LayoutGrid className="size-4" />
+          </DashboardActionButton>
+          <DashboardActionButton
+            onClick={() => setViewMode("list")}
+            className={classNames(
+              "size-9 border-transparent",
+              viewMode === "list" && "bg-[#18399F] text-white hover:text-white"
+            )}
+            aria-label="List view"
+          >
+            <List className="size-4" />
+          </DashboardActionButton>
+        </div>
+      </div>
+
+      {isLoadingListings ? (
+        <div
+          className={classNames(
+            viewMode === "grid" ? "grid gap-5 md:grid-cols-2" : "space-y-5"
+          )}
+        >
+          {Array.from({ length: 3 }).map((_, index) => (
+            <ListingSkeletonCard
+              key={`saved-skeleton-${index}`}
+              viewMode={viewMode}
+            />
+          ))}
+        </div>
+      ) : savedListingsToRender.length > 0 ? (
+        <>
+          <div
+            className={classNames(
+              "gap-5",
+              viewMode === "grid" ? "grid md:grid-cols-2" : "space-y-5"
+            )}
+          >
+            {savedListingsToRender.map((listing) => {
+              const landlord = getLandlordById(listing.landlordId);
+              const ratingSummary = getRatingSummary(
+                getReviewsForProperty(listing.id)
+              );
+
+              return (
+                <div key={listing.id} className="space-y-3">
+                  <div className="flex items-center justify-between gap-3 px-1">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5C7BD9]">
+                      {formatSavedDate(savedTimestamps[listing.id])}
+                    </p>
+                    <span className="text-xs text-slate-400">{listing.area}</span>
+                  </div>
+                  <TenantListingCard
+                    listing={listing}
+                    isSaved
+                    isVerifiedLandlord={Boolean(landlord)}
+                    landlordName={landlord?.name ?? ""}
+                    onContact={() => openRequestModal(listing, "contact")}
+                    onRequestViewing={() => openRequestModal(listing, "viewing")}
+                    onToggleSave={() => handleToggleSave(listing)}
+                    onViewDetails={() => openDetailsModal(listing)}
+                    onViewLandlordProfile={
+                      landlord
+                        ? () => handleOpenLandlordProfile(landlord.id)
+                        : undefined
+                    }
+                    ratingSummary={ratingSummary}
+                    saveLabel="Remove saved home"
+                    showRemoveButton
+                    viewMode={viewMode}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {sortedSavedListings.length > savedVisibleCount ? (
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() =>
+                  setSavedVisibleCount((current) => current + listingsPageSize)
+                }
+                className="rounded-full bg-[#18399F] px-5 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#102A74]"
+              >
+                Load More
+              </button>
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <div className="rounded-[1.8rem] border border-dashed border-[#C9D4EC] bg-[#F9FBFF] px-6 py-12 text-center">
+          <p className="text-lg font-semibold text-[#102A74]">
+            You haven&apos;t saved any homes yet
+          </p>
+          <p className="mt-3 text-sm leading-7 text-slate-500">
+            Start browsing available listings and tap the heart icon to keep your
+            favorite homes here.
+          </p>
+          <button
+            type="button"
+            onClick={() => selectNavItemByLabel(defaultActiveItemLabel)}
+            className="mt-6 rounded-full bg-[#18399F] px-5 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#102A74]"
+          >
+            Browse Homes
+          </button>
+        </div>
+      )}
+    </section>
+  );
+
+  const renderVerifiedLandlordsView = () => (
+    <TenantVerifiedLandlordsView
+      landlords={verifiedLandlords}
+      listings={listings}
+      onOpenReviewsPage={handleOpenLandlordReviews}
+      onSelectLandlord={setSelectedLandlordId}
+      onSubmitReview={handleSubmitLandlordReview}
+      reviews={landlordReviews}
+      selectedLandlordId={selectedLandlord?.id ?? null}
+      tenantName={profileName}
+    />
+  );
+
+  const renderLandlordReviewsView = () => (
+    <TenantLandlordReviewsView
+      landlords={verifiedLandlords}
+      listings={listings}
+      onOpenVerifiedLandlords={() => selectNavItemByLabel("Verified Landlords")}
+      onSelectLandlord={setSelectedLandlordId}
+      onSubmitReview={handleSubmitLandlordReview}
+      reviews={landlordReviews}
+      tenantName={profileName}
+    />
+  );
+
+  const renderPayRentView = () => (
+    <TenantPayRentView
+      onPayNow={handlePayRent}
+      onSelectPaymentMethod={handleSelectPaymentMethod}
+      onToggleReminder={handleToggleReminder}
+      paymentDetails={rentPaymentDetails}
+    />
+  );
+
+  const renderRentHistoryView = () => (
+    <TenantRentHistoryView
+      history={paymentHistory}
+      onViewReceipt={handleViewReceiptFromHistory}
+    />
+  );
+
+  const renderReceiptsView = () => (
+    <TenantReceiptsView
+      onDownloadReceipt={handleDownloadReceipt}
+      onOpenReceiptPreview={handleOpenReceiptPreview}
+      onSelectReceipt={handleSelectReceipt}
+      receipts={receiptRecords}
+      selectedReceiptId={selectedReceiptId}
+    />
+  );
+
+  const renderReportIssueView = () => (
+    <TenantIssueReportView
+      issues={issueReports}
+      onSubmitIssue={handleSubmitIssueReport}
+    />
+  );
+
+  const renderMyRequestsView = () => (
+    <TenantRequestsView
+      onCreateRequest={handleCreateServiceRequest}
+      requests={serviceRequests}
+    />
+  );
+
+  const renderAnnouncementsView = () => (
+    <TenantAnnouncementsView
+      announcements={announcements}
+      onOpenAnnouncement={handleOpenAnnouncement}
+    />
+  );
+
+  const renderChatWithLandlordView = () => (
+    <TenantChatWithLandlordView
+      conversations={chatConversations}
+      onOpenConversation={handleOpenConversation}
+      onSendMessage={handleSendChatMessage}
+      tenantName={profileName}
+      typingConversationId={typingConversationId}
+    />
   );
 
   return (
@@ -682,12 +2589,21 @@ export default function TenantDashboardView() {
         </div>
 
         <div className="hidden items-center justify-between border-b border-[#C9D4EC] bg-[#F4F4F4] px-5 lg:flex lg:col-start-2 lg:row-start-1">
-          <span
-            title={profileName}
-            className="grid size-8 place-items-center rounded-full bg-[#D9D9D9] text-xs font-bold text-[#18399F]"
-          >
-            {initials}
-          </span>
+          <div className="flex items-center gap-3">
+            <ProfileAvatarButton
+              avatar={profileAvatar}
+              className="size-8 text-xs"
+              initials={initials}
+              name={profileName}
+              onClick={handleOpenProfileModal}
+            />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-[#102A74]">
+                {profileName}
+              </p>
+              <p className="text-xs text-[#3656B7]">Tenant Profile</p>
+            </div>
+          </div>
 
           <button
             type="button"
@@ -719,17 +2635,16 @@ export default function TenantDashboardView() {
         <div className="hidden items-center justify-end gap-2 border-b border-[#C9D4EC] bg-[#F4F4F4] px-4 lg:flex lg:col-start-2 lg:row-start-2">
           <DashboardActionButton
             onClick={() => selectNavItemByLabel(defaultActiveItemLabel)}
-            className="border-[#18399F] bg-[#18399F] text-white shadow-[0_12px_24px_rgba(24,57,159,0.18)] hover:border-[#102A74] hover:bg-[#102A74] hover:text-white"
             aria-label={`Open ${defaultActiveItemLabel}`}
           >
             <Plus className="size-4" />
           </DashboardActionButton>
 
           <DashboardActionButton
-            onClick={() => selectNavItemByLabel("Chat with Landlord")}
-            aria-label="Open messages"
+            onClick={() => selectNavItemByLabel("Saved Homes")}
+            aria-label="Open saved homes"
           >
-            <Mail className="size-4" />
+            <Heart className="size-4" />
           </DashboardActionButton>
 
           <DashboardActionButton
@@ -791,9 +2706,16 @@ export default function TenantDashboardView() {
             </div>
 
             <div className="ml-auto flex items-center gap-3">
-              <span className="grid cursor-pointer size-9 place-items-center rounded-full bg-[#D9D9D9] text-sm font-bold text-[#18399F]">
-                {initials}
+              <span className="hidden max-w-[7rem] truncate text-sm font-semibold text-[#102A74] sm:block">
+                {profileName}
               </span>
+              <ProfileAvatarButton
+                avatar={profileAvatar}
+                className="size-9 text-sm"
+                initials={initials}
+                name={profileName}
+                onClick={handleOpenProfileModal}
+              />
             </div>
 
             <button
@@ -807,13 +2729,32 @@ export default function TenantDashboardView() {
           </header>
 
           <main className="flex-1 px-4 py-4 sm:px-6 lg:min-h-0 lg:px-7 lg:py-5">
-            {activeItem?.label === defaultActiveItemLabel ? (
-              renderBrowseHomesView()
-            ) : (
+            {isBrowseHomesView ? renderBrowseHomesView() : null}
+            {isSavedHomesView ? renderSavedHomesView() : null}
+            {isVerifiedLandlordsView ? renderVerifiedLandlordsView() : null}
+            {isLandlordReviewsView ? renderLandlordReviewsView() : null}
+            {isPayRentView ? renderPayRentView() : null}
+            {isRentHistoryView ? renderRentHistoryView() : null}
+            {isReceiptsView ? renderReceiptsView() : null}
+            {isReportIssueView ? renderReportIssueView() : null}
+            {isMyRequestsView ? renderMyRequestsView() : null}
+            {isAnnouncementView ? renderAnnouncementsView() : null}
+            {isChatWithLandlordView ? renderChatWithLandlordView() : null}
+            {!isBrowseHomesView &&
+            !isSavedHomesView &&
+            !isVerifiedLandlordsView &&
+            !isLandlordReviewsView &&
+            !isPayRentView &&
+            !isRentHistoryView &&
+            !isReceiptsView &&
+            !isReportIssueView &&
+            !isMyRequestsView &&
+            !isAnnouncementView &&
+            !isChatWithLandlordView ? (
               <EmptyDashboardView
                 title={activeItem?.label ?? defaultActiveItemLabel}
               />
-            )}
+            ) : null}
           </main>
         </div>
       </div>
@@ -852,6 +2793,184 @@ export default function TenantDashboardView() {
             showCloseButton
           />
         </aside>
+      </div>
+
+      <div
+        className={classNames(
+          "fixed inset-0 z-[70] flex items-center justify-center p-4 transition-opacity duration-300",
+          isProfileModalOpen
+            ? "pointer-events-auto opacity-100"
+            : "pointer-events-none opacity-0"
+        )}
+        aria-hidden={!isProfileModalOpen}
+      >
+        <button
+          type="button"
+          onClick={handleCloseProfileModal}
+          className="absolute inset-0 bg-[#07163F]/45"
+          aria-label="Close profile editor overlay"
+        />
+
+        <div
+          className="relative z-10 w-full max-w-md rounded-[1.8rem] border border-[#DCE5F7] bg-white p-6 shadow-[0_22px_44px_rgba(13,29,76,0.2)]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#3656B7]">
+                Edit Profile
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-[#102A74]">
+                Update your avatar and display name
+              </h2>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCloseProfileModal}
+              className="grid size-9 place-items-center rounded-full border border-[#C9D4EC] text-[#18399F] transition-colors duration-300 hover:border-[#18399F]"
+              aria-label="Close profile editor"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+
+          <div className="mt-6 flex flex-col items-center gap-4 text-center">
+            <div className="grid size-24 place-items-center overflow-hidden rounded-full bg-[#E8EEFF] text-2xl font-bold text-[#18399F]">
+              {profileDraftAvatar ? (
+                <img
+                  src={profileDraftAvatar}
+                  alt={profileDraftName || profileName}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span>{deriveInitials(profileDraftName, initials)}</span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-2">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#18399F] px-4 py-2 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#102A74]">
+                <span>Upload Image</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfileImageChange}
+                  onClick={(event) => {
+                    event.currentTarget.value = "";
+                  }}
+                  className="hidden"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() => setProfileDraftAvatar(null)}
+                disabled={!profileDraftAvatar}
+                className={classNames(
+                  "rounded-full border px-4 py-2 text-sm font-semibold transition-colors duration-300",
+                  profileDraftAvatar
+                    ? "border-[#C9D4EC] text-[#18399F] hover:border-[#18399F]"
+                    : "border-[#E3E8F5] text-slate-300 cursor-not-allowed"
+                )}
+              >
+                Remove Image
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <label
+              htmlFor="tenant-profile-name"
+              className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#3656B7]"
+            >
+              Profile Name
+            </label>
+            <input
+              id="tenant-profile-name"
+              type="text"
+              value={profileDraftName}
+              onChange={(event) => setProfileDraftName(event.target.value)}
+              placeholder="Enter your profile name"
+              className="h-12 w-full rounded-[1rem] border border-[#DCE5F7] px-4 text-sm text-slate-700 outline-none transition focus:border-[#18399F]"
+            />
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleCloseProfileModal}
+              className="rounded-full border border-[#C9D4EC] px-4 py-2 text-sm font-semibold text-[#18399F] transition-colors duration-300 hover:border-[#18399F]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleProfileSave}
+              className="rounded-full bg-[#18399F] px-4 py-2 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#102A74]"
+            >
+              Save Changes
+            </button>
+          </div>
+
+          <p className="mt-4 text-xs text-slate-400">
+            Click outside the modal or press Escape to close it.
+          </p>
+        </div>
+      </div>
+
+      <ReceiptPreviewModal
+        onClose={handleCloseReceiptPreview}
+        onDownloadReceipt={handleDownloadReceipt}
+        receipt={previewReceipt}
+      />
+
+      {requestModalState.listing ? (
+        <RequestActionModal
+          modalState={requestModalState}
+          onClose={closeRequestModal}
+          onSubmit={handleSubmitRequest}
+        />
+      ) : null}
+
+      <PropertyDetailsModal
+        landlord={detailsListing ? getLandlordById(detailsListing.landlordId) : null}
+        listing={detailsListing}
+        isSaved={detailsListing ? isListingSaved(detailsListing.id) : false}
+        onClose={closeDetailsModal}
+        onContact={() =>
+          detailsListing
+            ? handleOpenRequestFromDetails(detailsListing, "contact")
+            : null
+        }
+        onOpenLandlordProfile={() =>
+          detailsListing
+            ? handleOpenLandlordProfile(detailsListing.landlordId)
+            : null
+        }
+        onRequestViewing={() =>
+          detailsListing
+            ? handleOpenRequestFromDetails(detailsListing, "viewing")
+            : null
+        }
+        onToggleSave={() =>
+          detailsListing ? handleToggleSave(detailsListing) : null
+        }
+        ratingSummary={
+          detailsListing
+            ? getRatingSummary(getReviewsForProperty(detailsListing.id))
+            : { average: 0, count: 0 }
+        }
+      />
+
+      <div
+        className={classNames(
+          "fixed bottom-5 right-5 z-[90] rounded-full bg-[#102A74] px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(13,29,76,0.24)] transition-all duration-300",
+          feedbackMessage
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-3 opacity-0"
+        )}
+      >
+        {feedbackMessage}
       </div>
     </div>
   );

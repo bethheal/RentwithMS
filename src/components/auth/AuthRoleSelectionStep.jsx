@@ -4,6 +4,11 @@ import AuthRoleArtwork from "./AuthRoleArtwork.jsx";
 
 const roleCards = [
   {
+    id: "admin",
+    label: "Admin",
+    description: "Continue to an admin space for verified landlord oversight, trust indicators, and tenant review management.",
+  },
+  {
     id: "tenant",
     label: "Tenant",
     description: "Continue to a tenant space for browsing homes, managing requests, and following rental updates.",
@@ -69,7 +74,7 @@ export default function AuthRoleSelectionStep({ mode = "signup" }) {
 
       
 
-            <div className="mt-12 grid gap-6 sm:grid-cols-2 sm:gap-7 lg:gap-8">
+            <div className="mt-12 grid gap-6 sm:grid-cols-2 sm:gap-7 lg:grid-cols-3 lg:gap-8">
               {roleCards.map((role) => (
                 <Link
                   key={role.id}
@@ -111,8 +116,9 @@ export default function AuthRoleSelectionStep({ mode = "signup" }) {
             The right workspace for every rental journey.
           </h2>
           <p className="mt-6 text-base leading-8 text-slate-500">
-            Tenants get a calmer renting experience while landlords unlock the
-            tools they need to publish listings, manage tenants, and collect rent.
+            Tenants get a calmer renting experience, landlords manage listings
+            with confidence, and admins keep verification and trust signals
+            visible across the platform.
           </p>
         </div>
       </section>
