@@ -50,11 +50,7 @@ export default function AuthModeShell({
                 {modeLabel}
               </h1>
 
-              {description ? (
-                <p className="mx-auto max-w-[24rem] text-center text-sm leading-7 text-slate-500">
-                  {description}
-                </p>
-              ) : null}
+           
 
               <button
                 type="button"

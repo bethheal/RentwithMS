@@ -37,7 +37,7 @@ export const tenantDashboardResponse = {
       },
       {
         title: "General",
-        items: ["Dashboard", "Booking", "Documents"],
+        items: ["Dashboard", "Bookings", "Documents"],
       },
       {
         title: "Preferences",
@@ -283,6 +283,209 @@ export const tenantDashboardResponse = {
           "Rejected for now because all reserved visitor spaces are currently assigned.",
       },
     ],
+    bookings: [
+      {
+        id: "booking-001",
+        title: "Inspection Visit",
+        type: "Inspection",
+        date: "2026-04-24",
+        startTime: "10:00",
+        endTime: "11:00",
+        status: "Upcoming",
+        location: "Palm Court Apartment, Block B",
+        notes:
+          "Routine walkthrough with the property manager to review finishing details and utility access.",
+        host: "Ama Boateng",
+      },
+      {
+        id: "booking-002",
+        title: "Roof Terrace Reservation",
+        type: "Facility Reservation",
+        date: "2026-04-28",
+        startTime: "18:00",
+        endTime: "20:30",
+        status: "Upcoming",
+        location: "Palm Court Rooftop Terrace",
+        notes:
+          "Reserved for a small evening gathering. Noise guidelines still apply after 9 PM.",
+        host: "Facilities Desk",
+      },
+      {
+        id: "booking-003",
+        title: "Move-in Orientation",
+        type: "Appointment",
+        date: "2026-04-02",
+        startTime: "09:30",
+        endTime: "10:15",
+        status: "Completed",
+        location: "Palm Court Management Office",
+        notes:
+          "Collected building access guidelines, waste disposal instructions, and emergency contacts.",
+        host: "Kwame Asare",
+      },
+      {
+        id: "booking-004",
+        title: "Plumbing Follow-up Visit",
+        type: "Maintenance Visit",
+        date: "2026-04-14",
+        startTime: "14:00",
+        endTime: "15:00",
+        status: "Cancelled",
+        location: "Palm Court Apartment, Block B",
+        notes:
+          "Cancelled because the repair team resolved the issue ahead of schedule during the first visit.",
+        host: "Maintenance Team",
+      },
+    ],
+    documents: [
+      {
+        id: "document-001",
+        name: "Palm Court Tenancy Agreement",
+        fileType: "PDF",
+        issuedDate: "2026-01-05",
+        category: "Tenancy Agreement",
+        issuer: "RMS Legal Desk",
+        size: "1.2 MB",
+        isPinned: true,
+        description:
+          "Signed tenancy agreement for Block B, Apartment 4, including rent schedule and occupancy terms.",
+      },
+      {
+        id: "document-002",
+        name: "March Rent Receipt",
+        fileType: "PDF",
+        issuedDate: "2026-03-27",
+        category: "Receipt",
+        issuer: "Payments Team",
+        size: "280 KB",
+        isPinned: false,
+        description:
+          "Official receipt confirming successful rent and utilities payment for March 2026.",
+      },
+      {
+        id: "document-003",
+        name: "Water Maintenance Notice",
+        fileType: "DOC",
+        issuedDate: "2026-04-19",
+        category: "Notice",
+        issuer: "Property Manager",
+        size: "96 KB",
+        isPinned: false,
+        description:
+          "Advance notice outlining the temporary water shutdown and expected restoration window.",
+      },
+      {
+        id: "document-004",
+        name: "Move-in Condition Checklist",
+        fileType: "PDF",
+        issuedDate: "2026-01-05",
+        category: "Inspection",
+        issuer: "Facilities Desk",
+        size: "520 KB",
+        isPinned: false,
+        description:
+          "Initial apartment condition report signed during handover, with room-by-room observations.",
+      },
+      {
+        id: "document-005",
+        name: "Utility Summary - Q1 2026",
+        fileType: "XLS",
+        issuedDate: "2026-04-01",
+        category: "Utilities",
+        issuer: "Accounting Team",
+        size: "144 KB",
+        isPinned: false,
+        description:
+          "Quarterly utility statement summarizing billed charges and payment status for the apartment.",
+      },
+    ],
+    settings: {
+      profile: {
+        name: "Mabel Tetteh",
+        email: "mabel.tetteh@example.com",
+        phone: "+233 24 555 0142",
+        avatar: null,
+      },
+      notifications: {
+        announcements: true,
+        rentReminders: true,
+        maintenanceUpdates: true,
+        smsAlerts: false,
+      },
+      payment: {
+        preferredMethod: "mobile-money",
+        receiptDelivery: "Email",
+        autoPay: false,
+      },
+      security: {
+        biometricLogin: true,
+        twoFactorAuth: false,
+      },
+    },
+    helpCenter: {
+      faqs: [
+        {
+          id: "help-pay-rent",
+          question: "How do I pay rent from the tenant dashboard?",
+          answer:
+            "Open the Pay Rent page, confirm your preferred payment method, and use the Pay Now button to record the transaction in this demo workspace.",
+        },
+        {
+          id: "help-receipts",
+          question: "Where can I download old rent receipts?",
+          answer:
+            "Visit the Receipts page to review past rent records and use the download action attached to any receipt card.",
+        },
+        {
+          id: "help-report-issue",
+          question: "How do I report a maintenance issue?",
+          answer:
+            "Go to Report Issue, describe the problem, choose a priority level, and attach any photos or videos that help explain the issue.",
+        },
+        {
+          id: "help-booking",
+          question: "Can I schedule inspections or facility reservations?",
+          answer:
+            "Yes. Use the Bookings page to review upcoming reservations and create a new inspection visit, appointment, or shared-facility booking.",
+        },
+      ],
+      support: {
+        email: "support@rmsdemo.app",
+        phone: "+233 30 555 0142",
+        emergencyLine: "+233 20 111 9000",
+        chatHours: "Mon - Sat, 8:00 AM - 6:00 PM",
+      },
+    },
+    termsAndConditions: {
+      lastUpdated: "2026-04-18",
+      accepted: false,
+      sections: [
+        {
+          id: "terms-acceptance",
+          title: "Acceptance of the tenant workspace",
+          body:
+            "By using the RMS tenant portal, you agree to the current product terms, privacy expectations, and communication rules that support tenancy workflows in this demo environment.",
+        },
+        {
+          id: "terms-payments",
+          title: "Payments and billing records",
+          body:
+            "Payment summaries, receipts, and billing reminders shown in the workspace are intended to help you review rent obligations quickly. You should still confirm any final charges with your landlord or property manager when needed.",
+        },
+        {
+          id: "terms-documents",
+          title: "Documents and notices",
+          body:
+            "Documents made available in the portal should be stored and reviewed carefully. Important notices, receipts, agreements, and maintenance records may be updated over time, and the latest issued copy should be treated as the active version.",
+        },
+        {
+          id: "terms-conduct",
+          title: "Responsible communication",
+          body:
+            "Use respectful language when creating requests, reporting issues, or contacting support. Misleading information, harassment, or abusive use of the platform may lead to account restrictions.",
+        },
+      ],
+    },
     announcements: [
       {
         id: "announcement-001",

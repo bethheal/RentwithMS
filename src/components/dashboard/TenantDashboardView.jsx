@@ -57,6 +57,16 @@ import {
   TenantRentHistoryView,
 } from "./TenantPaymentsViews.jsx";
 import {
+  TenantBookingsView,
+  TenantDocumentsView,
+  TenantOverviewDashboardView,
+} from "./TenantGeneralViews.jsx";
+import {
+  TenantHelpView,
+  TenantSettingsView,
+  TenantTermsView,
+} from "./TenantPreferencesViews.jsx";
+import {
   TenantAnnouncementsView,
   TenantChatWithLandlordView,
   TenantIssueReportView,
@@ -81,6 +91,7 @@ const navItemIconMap = {
   Announcement: Megaphone,
   "Chat with Landlord": MessagesSquare,
   Dashboard: LayoutDashboard,
+  Bookings: CalendarDays,
   Booking: CalendarDays,
   Documents: FolderOpen,
   Settings: Settings,
@@ -800,9 +811,12 @@ function EmptyDashboardView({ title }) {
 export default function TenantDashboardView() {
   const { logout, updateUser, user } = useAuth();
   const {
+    bookings: initialBookings,
     announcements: initialAnnouncements,
     chatConversations: initialChatConversations,
+    documents: initialDocuments,
     filters,
+    helpCenter,
     issueReports: initialIssueReports,
     listings,
     navSections,
@@ -810,6 +824,8 @@ export default function TenantDashboardView() {
     rentHistory: initialRentHistory,
     rentPayment: initialRentPayment,
     serviceRequests: initialServiceRequests,
+    settings: initialSettings,
+    termsAndConditions,
     user: fallbackUser,
   } = tenantDashboardResponse.data;
   const verifiedLandlords = landlordTrustResponse.data.verifiedLandlords;
@@ -892,11 +908,25 @@ export default function TenantDashboardView() {
     initialReceipts[0]?.id ?? null
   );
   const [receiptPreviewId, setReceiptPreviewId] = useState(null);
+  const [bookingRecords, setBookingRecords] = useState(initialBookings);
   const [issueReports, setIssueReports] = useState(initialIssueReports);
   const [serviceRequests, setServiceRequests] = useState(initialServiceRequests);
   const [announcements, setAnnouncements] = useState(initialAnnouncements);
   const [chatConversations, setChatConversations] = useState(
     initialChatConversations
+  );
+  const [tenantSettings, setTenantSettings] = useState({
+    ...initialSettings,
+    profile: {
+      ...initialSettings.profile,
+      avatar: profileAvatar ?? initialSettings.profile.avatar ?? null,
+      email: user?.email ?? initialSettings.profile.email,
+      name: profileName,
+      phone: user?.phone ?? initialSettings.profile.phone,
+    },
+  });
+  const [termsAccepted, setTermsAccepted] = useState(
+    Boolean(termsAndConditions.accepted)
   );
   const [typingConversationId, setTypingConversationId] = useState(null);
   const chatReplyTimeoutsRef = useRef({});
@@ -993,6 +1023,10 @@ export default function TenantDashboardView() {
     preferenceSection;
   const activeSectionTitle = activeSection?.title ?? "Dashboard";
   const activeItemLabel = activeItem?.label ?? defaultActiveItemLabel;
+  const isDashboardOverviewView = activeItemLabel === "Dashboard";
+  const isBookingsView =
+    activeItemLabel === "Bookings" || activeItemLabel === "Booking";
+  const isDocumentsView = activeItemLabel === "Documents";
   const isBrowseHomesView = activeItemLabel === "Browse Homes";
   const isSavedHomesView = activeItemLabel === "Saved Homes";
   const isVerifiedLandlordsView = activeItemLabel === "Verified Landlords";
@@ -1004,6 +1038,27 @@ export default function TenantDashboardView() {
   const isMyRequestsView = activeItemLabel === "My Requests";
   const isAnnouncementView = activeItemLabel === "Announcement";
   const isChatWithLandlordView = activeItemLabel === "Chat with Landlord";
+  const isSettingsView = activeItemLabel === "Settings";
+  const isHelpView = activeItemLabel === "Help";
+  const isTermsView = activeItemLabel === "Terms & Conditions";
+  const hasDedicatedView =
+    isDashboardOverviewView ||
+    isBookingsView ||
+    isDocumentsView ||
+    isBrowseHomesView ||
+    isSavedHomesView ||
+    isVerifiedLandlordsView ||
+    isLandlordReviewsView ||
+    isPayRentView ||
+    isRentHistoryView ||
+    isReceiptsView ||
+    isReportIssueView ||
+    isMyRequestsView ||
+    isAnnouncementView ||
+    isChatWithLandlordView ||
+    isSettingsView ||
+    isHelpView ||
+    isTermsView;
   const isActiveSectionExpanded =
     activeSection?.id && activeSection.id !== "preferences"
       ? Boolean(expandedSections[activeSection.id])
@@ -1346,15 +1401,27 @@ export default function TenantDashboardView() {
   const handleProfileSave = () => {
     const nextName = profileDraftName.trim() || profileName;
 
+    setTenantSettings((current) => ({
+      ...current,
+      profile: {
+        ...current.profile,
+        avatar: profileDraftAvatar ?? null,
+        email: user?.email ?? current.profile.email,
+        name: nextName,
+        phone: user?.phone ?? current.profile.phone,
+      },
+    }));
     updateUser({
       ...(user ?? {}),
       avatar: profileDraftAvatar ?? null,
       email: user?.email ?? "tenant@example.com",
       id: user?.id ?? "usr_tenant_01",
       name: nextName,
+      phone: user?.phone ?? tenantSettings.profile.phone,
       role: user?.role ?? fallbackUser.role,
     });
     setIsProfileModalOpen(false);
+    setFeedbackMessage("Profile updated successfully.");
   };
 
   const toggleAreaFilter = (area) => {
@@ -1496,6 +1563,40 @@ export default function TenantDashboardView() {
     selectNavItemByLabel("Receipts");
   };
 
+  const handleCreateBooking = ({
+    date,
+    endTime,
+    location,
+    notes,
+    startTime,
+    title,
+    type,
+  }) => {
+    const nextBooking = {
+      date,
+      endTime,
+      host: "Tenant Booking Desk",
+      id: `booking-${Date.now()}`,
+      location,
+      notes,
+      startTime,
+      status: "Upcoming",
+      title,
+      type,
+    };
+
+    setBookingRecords((current) => [nextBooking, ...current]);
+    setFeedbackMessage(`${title} has been added to your bookings.`);
+  };
+
+  const handleDownloadDocument = (document) => {
+    if (!document) {
+      return;
+    }
+
+    setFeedbackMessage(`${document.name} is ready for download.`);
+  };
+
   const handlePayRent = () => {
     if (rentPaymentDetails.paymentStatus === "Paid") {
       setFeedbackMessage("This rent invoice is already marked as paid.");
@@ -1547,6 +1648,47 @@ export default function TenantDashboardView() {
     setSelectedReceiptId(receiptId);
     setFeedbackMessage(
       `Rent payment recorded successfully via ${selectedMethod?.label ?? "your selected method"}.`
+    );
+  };
+
+  const handleSaveTenantSettings = (nextSettings) => {
+    const nextProfileName = nextSettings.profile.name.trim() || profileName;
+    const nextProfileEmail =
+      nextSettings.profile.email.trim() ||
+      user?.email ||
+      tenantSettings.profile.email;
+    const normalizedSettings = {
+      ...nextSettings,
+      profile: {
+        ...nextSettings.profile,
+        avatar: nextSettings.profile.avatar ?? null,
+        email: nextProfileEmail,
+        name: nextProfileName,
+        phone: nextSettings.profile.phone.trim(),
+      },
+    };
+
+    setTenantSettings(normalizedSettings);
+    updateUser({
+      ...(user ?? {}),
+      avatar: normalizedSettings.profile.avatar,
+      email: normalizedSettings.profile.email,
+      id: user?.id ?? "usr_tenant_01",
+      name: normalizedSettings.profile.name,
+      phone: normalizedSettings.profile.phone,
+      role: user?.role ?? fallbackUser.role,
+    });
+    setFeedbackMessage("Settings updated successfully.");
+  };
+
+  const handleOpenSupportChat = () => {
+    setFeedbackMessage("Support chat request started. We will follow up shortly.");
+  };
+
+  const handleToggleTermsAcceptance = (nextAccepted) => {
+    setTermsAccepted(nextAccepted);
+    setFeedbackMessage(
+      nextAccepted ? "Terms accepted successfully." : "Terms acceptance removed."
     );
   };
 
@@ -1794,6 +1936,33 @@ export default function TenantDashboardView() {
     setSelectedLandlordId(landlordId);
     setFeedbackMessage("Review submitted");
   };
+
+  const renderDashboardOverviewView = () => (
+    <TenantOverviewDashboardView
+      announcements={announcements}
+      onContactLandlord={() => selectNavItemByLabel("Chat with Landlord")}
+      onOpenAnnouncement={handleOpenAnnouncement}
+      onPayRent={() => selectNavItemByLabel("Pay Rent")}
+      onReportIssue={() => selectNavItemByLabel("Report Issue")}
+      paymentDetails={rentPaymentDetails}
+      paymentHistory={paymentHistory}
+      serviceRequests={serviceRequests}
+    />
+  );
+
+  const renderBookingsView = () => (
+    <TenantBookingsView
+      bookings={bookingRecords}
+      onCreateBooking={handleCreateBooking}
+    />
+  );
+
+  const renderDocumentsView = () => (
+    <TenantDocumentsView
+      documents={initialDocuments}
+      onDownloadDocument={handleDownloadDocument}
+    />
+  );
 
   const renderBrowseHomesView = () => (
     <>
@@ -2576,6 +2745,28 @@ export default function TenantDashboardView() {
     />
   );
 
+  const renderSettingsView = () => (
+    <TenantSettingsView
+      onSaveSettings={handleSaveTenantSettings}
+      settings={tenantSettings}
+    />
+  );
+
+  const renderHelpView = () => (
+    <TenantHelpView
+      helpCenter={helpCenter}
+      onStartSupportChat={handleOpenSupportChat}
+    />
+  );
+
+  const renderTermsView = () => (
+    <TenantTermsView
+      accepted={termsAccepted}
+      onToggleAccepted={handleToggleTermsAcceptance}
+      terms={termsAndConditions}
+    />
+  );
+
   return (
     <div className="min-h-screen bg-white text-[#18399F]">
       <div className="flex min-h-screen flex-col lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:grid-rows-[3rem_2.65rem_minmax(0,1fr)]">
@@ -2729,6 +2920,9 @@ export default function TenantDashboardView() {
           </header>
 
           <main className="flex-1 px-4 py-4 sm:px-6 lg:min-h-0 lg:px-7 lg:py-5">
+            {isDashboardOverviewView ? renderDashboardOverviewView() : null}
+            {isBookingsView ? renderBookingsView() : null}
+            {isDocumentsView ? renderDocumentsView() : null}
             {isBrowseHomesView ? renderBrowseHomesView() : null}
             {isSavedHomesView ? renderSavedHomesView() : null}
             {isVerifiedLandlordsView ? renderVerifiedLandlordsView() : null}
@@ -2740,17 +2934,10 @@ export default function TenantDashboardView() {
             {isMyRequestsView ? renderMyRequestsView() : null}
             {isAnnouncementView ? renderAnnouncementsView() : null}
             {isChatWithLandlordView ? renderChatWithLandlordView() : null}
-            {!isBrowseHomesView &&
-            !isSavedHomesView &&
-            !isVerifiedLandlordsView &&
-            !isLandlordReviewsView &&
-            !isPayRentView &&
-            !isRentHistoryView &&
-            !isReceiptsView &&
-            !isReportIssueView &&
-            !isMyRequestsView &&
-            !isAnnouncementView &&
-            !isChatWithLandlordView ? (
+            {isSettingsView ? renderSettingsView() : null}
+            {isHelpView ? renderHelpView() : null}
+            {isTermsView ? renderTermsView() : null}
+            {!hasDedicatedView ? (
               <EmptyDashboardView
                 title={activeItem?.label ?? defaultActiveItemLabel}
               />

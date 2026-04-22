@@ -3,20 +3,16 @@ import { Link } from "react-router-dom";
 import AuthRoleArtwork from "./AuthRoleArtwork.jsx";
 
 const roleCards = [
-  {
-    id: "admin",
-    label: "Admin",
-    description: "Continue to an admin space for verified landlord oversight, trust indicators, and tenant review management.",
-  },
+ 
   {
     id: "tenant",
     label: "Tenant",
-    description: "Continue to a tenant space for browsing homes, managing requests, and following rental updates.",
+   
   },
   {
     id: "landlord",
     label: "Landlord",
-    description: "Continue to a landlord space for listings, tenant activity, payments, and property workflows.",
+ 
   },
 ];
 
@@ -92,9 +88,7 @@ export default function AuthRoleSelectionStep({ mode = "signup" }) {
                     <AuthRoleArtwork roleKey={role.id} compact />
                   </div>
 
-                  <p className="mt-5 text-sm leading-7 text-[#DCE7FF]">
-                    {role.description}
-                  </p>
+                
                 </Link>
               ))}
             </div>
