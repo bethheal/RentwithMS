@@ -1,68 +1,94 @@
-import { useState } from "react";
-import { ShieldCheck, Sparkles } from "lucide-react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import AuthFormField from "../../components/auth/AuthFormField.jsx";
-import AuthModeShell from "../../components/auth/AuthModeShell.jsx";
-import AuthRoleSelectionStep from "../../components/auth/AuthRoleSelectionStep.jsx";
+import { useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import AuthFormField from '../../components/auth/AuthFormField.jsx'
+import AuthModeShell from '../../components/auth/AuthModeShell.jsx'
+import AuthRoleSelectionStep from '../../components/auth/AuthRoleSelectionStep.jsx'
 import {
   authRoleContent,
   normalizeAuthRole,
-} from "../../components/auth/authRoleConfig.js";
-import { useAuth } from "../../context/AuthContext.jsx";
+} from '../../components/auth/authRoleConfig.js'
+import { useAuth } from '../../context/AuthContext.jsx'
+import { requestGoogleIdToken } from '../../utils/googleAuth.js'
+import { showErrorToast } from '../../utils/toast.js'
 
 const emptyState = {
-  email: "",
-  password: "",
-};
+  email: '',
+  password: '',
+}
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
 
 export default function LoginPage() {
-  const [searchParams] = useSearchParams();
-  const roleKey = normalizeAuthRole(searchParams.get("role"));
+  const [searchParams] = useSearchParams()
+  const roleKey = normalizeAuthRole(searchParams.get('role'))
 
   if (!roleKey) {
-    return <AuthRoleSelectionStep mode="login" />;
+    return <AuthRoleSelectionStep mode="login" />
   }
 
-  return <LoginRoleForm key={roleKey} roleKey={roleKey} />;
+  return <LoginRoleForm key={roleKey} roleKey={roleKey} />
 }
 
 function LoginRoleForm({ roleKey }) {
-  const navigate = useNavigate();
-  const { login } = useAuth();
-  const roleConfig = authRoleContent[roleKey];
+  const navigate = useNavigate()
+  const { login, loginWithGoogle } = useAuth()
+  const roleConfig = authRoleContent[roleKey]
   const [formValues, setFormValues] = useState(() => ({
     ...emptyState,
-    email: roleConfig.defaultEmail,
-    password: "password123",
-  }));
+  }))
+  const [formError, setFormError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
+    const { name, value } = event.target
     setFormValues((current) => ({
       ...current,
       [name]: value,
-    }));
-  };
+    }))
 
-  const handleCompleteLogin = ({ email }) => {
-    login({
-      email: email || roleConfig.defaultEmail,
-      role: roleConfig.label,
-    });
+    if (formError) {
+      setFormError('')
+    }
+  }
 
-    navigate("/dashboard");
-  };
+  const handleGoogleLogin = async () => {
+    try {
+      setIsGoogleLoading(true)
+      setFormError('')
 
-  const handleGoogleLogin = () => {
-    handleCompleteLogin({
-      email: roleConfig.googleLoginEmail,
-    });
-  };
+      const idToken = await requestGoogleIdToken(googleClientId)
+      await loginWithGoogle({
+        idToken,
+        role: roleKey,
+      })
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    handleCompleteLogin(formValues);
-  };
+      navigate('/dashboard')
+    } catch (error) {
+      const nextMessage = error.message || 'Google login could not be completed.'
+      setFormError(nextMessage)
+      showErrorToast(error, 'Google login could not be completed.')
+    } finally {
+      setIsGoogleLoading(false)
+    }
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+
+    try {
+      setIsSubmitting(true)
+      setFormError('')
+
+      await login(formValues)
+      navigate('/dashboard')
+    } catch (error) {
+      const nextMessage = error.message || 'Login failed.'
+      setFormError(nextMessage)
+      showErrorToast(error, 'Login failed.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <AuthModeShell
@@ -70,12 +96,15 @@ function LoginRoleForm({ roleKey }) {
       backTo="/login"
       description={`Secure access to your ${roleConfig.label.toLowerCase()} workspace. Continue with Google or use your email credentials below.`}
       formId="login-form"
+      googleDisabled={isSubmitting || isGoogleLoading}
       googleLabel="Login with Google"
+      isGoogleLoading={isGoogleLoading}
       modeLabel="Log In"
       onGoogleAction={handleGoogleLogin}
       roleKey={roleKey}
       roleLabel={roleConfig.label}
-      submitLabel="Log In"
+      submitDisabled={isSubmitting || isGoogleLoading}
+      submitLabel={isSubmitting ? 'Logging In...' : 'Log In'}
       footer={
         <p className="text-sm text-slate-500">
           New to RMS?{" "}
@@ -88,8 +117,6 @@ function LoginRoleForm({ roleKey }) {
         </p>
       }
     >
-      
-
       <form id="login-form" onSubmit={handleSubmit} className="space-y-5">
         <AuthFormField
           label="Email*"
@@ -109,10 +136,16 @@ function LoginRoleForm({ roleKey }) {
           onChange={handleChange}
         />
 
-        <div >
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-         
-          </div>
+        {formError ? (
+          <p
+            aria-live="polite"
+            className="rounded-[1.1rem] border border-[#F3C9BF] bg-[#FFF4F1] px-4 py-3 text-sm text-[#9A3D2A]"
+          >
+            {formError}
+          </p>
+        ) : null}
+
+        <div>
           <button
             type="button"
             className="text-sm font-semibold text-[#18399F] transition-colors duration-300 hover:text-[#102A74]"
@@ -122,5 +155,5 @@ function LoginRoleForm({ roleKey }) {
         </div>
       </form>
     </AuthModeShell>
-  );
+  )
 }

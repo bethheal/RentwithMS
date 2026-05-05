@@ -28,10 +28,9 @@ export default defineConfig([
     },
   },
   {
-    files: ['server.js'],
+    files: ['backend/**/*.js'],
     languageOptions: {
       globals: {
-        ...globals.browser,
         ...globals.node,
       },
     },

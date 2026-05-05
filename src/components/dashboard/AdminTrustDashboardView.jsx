@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   BadgeCheck,
   Building2,
@@ -13,6 +13,7 @@ import { landlordTrustResponse } from "../../data/mockApi/landlordTrust.js";
 import { tenantDashboardResponse } from "../../data/mockApi/tenantDashboard.js";
 import { classNames } from "../../utils/classNames.js";
 import { getRatingSummary, formatTrustDate } from "../../utils/landlordTrust.js";
+import { showSuccessToast } from "../../utils/toast.js";
 import {
   RatingSummary,
   ReviewFeed,
@@ -224,7 +225,6 @@ export default function AdminTrustDashboardView() {
   const [verifiedLandlords, setVerifiedLandlords] = useState(
     landlordTrustResponse.data.verifiedLandlords
   );
-  const [feedbackMessage, setFeedbackMessage] = useState("");
   const [locationFilter, setLocationFilter] = useState("all");
   const [propertyFilter, setPropertyFilter] = useState("all");
   const [searchValue, setSearchValue] = useState("");
@@ -266,18 +266,6 @@ export default function AdminTrustDashboardView() {
   );
   const reviewSummary = getRatingSummary(reviews);
 
-  useEffect(() => {
-    if (!feedbackMessage) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setFeedbackMessage("");
-    }, 2400);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [feedbackMessage]);
-
   const handleRemoveVerification = (landlordId) => {
     const landlord = verifiedLandlords.find((item) => item.id === landlordId);
 
@@ -291,7 +279,7 @@ export default function AdminTrustDashboardView() {
     setSelectedLandlordId((current) =>
       current === landlordId ? null : current
     );
-    setFeedbackMessage(`Verification removed for ${landlord.name}`);
+    showSuccessToast(`Verification removed for ${landlord.name}.`);
   };
 
   return (
@@ -560,16 +548,6 @@ export default function AdminTrustDashboardView() {
         reviews={reviews}
       />
 
-      <div
-        className={classNames(
-          "fixed bottom-5 right-5 z-[90] rounded-full bg-[#102A74] px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(13,29,76,0.24)] transition-all duration-300",
-          feedbackMessage
-            ? "translate-y-0 opacity-100"
-            : "pointer-events-none translate-y-3 opacity-0"
-        )}
-      >
-        {feedbackMessage}
-      </div>
       </div>
     </div>
   );

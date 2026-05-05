@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   BadgeCheck,
   Bell,
+  Building2,
   CalendarDays,
   ChevronDown,
   ChevronRight,
@@ -34,11 +35,21 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { usePropertyStore } from "../../context/PropertyStoreContext.jsx";
 import { landlordTrustResponse } from "../../data/mockApi/landlordTrust.js";
 import { tenantDashboardResponse } from "../../data/mockApi/tenantDashboard.js";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock.js";
 import { getRatingSummary } from "../../utils/landlordTrust.js";
 import { classNames } from "../../utils/classNames.js";
+import {
+  showErrorToast,
+  showInfoToast,
+  showSuccessToast,
+} from "../../utils/toast.js";
+import {
+  isPropertyVisibleToTenant,
+  mapManagedPropertyToTenantCard,
+} from "../../utils/propertyRecords.js";
 import {
   RatingSummary,
   VerificationBadgeList,
@@ -62,6 +73,10 @@ import {
   TenantOverviewDashboardView,
 } from "./TenantGeneralViews.jsx";
 import {
+  TenantMyPropertiesView,
+  TenantPropertyDetailsModal,
+} from "./TenantPropertyViews.jsx";
+import {
   TenantHelpView,
   TenantSettingsView,
   TenantTermsView,
@@ -73,12 +88,13 @@ import {
   TenantRequestsView,
 } from "./TenantSupportViews.jsx";
 
-const defaultActiveItemLabel = "Browse Homes";
+const defaultActiveItemLabel = "My Properties";
 const budgetStep = 100;
 const roomCountMax = 99;
 const listingsPageSize = 6;
 
 const navItemIconMap = {
+  "My Properties": Building2,
   "Saved Homes": Heart,
   "Browse Homes": Compass,
   "Verified Landlords": BadgeCheck,
@@ -368,17 +384,6 @@ function RequestActionModal({ modalState, onClose, onSubmit }) {
   const [phone, setPhone] = useState("");
   const [preferredDate, setPreferredDate] = useState("");
   const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    if (!listing) {
-      return;
-    }
-
-    setFullName("");
-    setPhone("");
-    setPreferredDate("");
-    setMessage("");
-  }, [listing, modalState.mode]);
 
   if (!listing) {
     return null;
@@ -810,6 +815,7 @@ function EmptyDashboardView({ title }) {
 
 export default function TenantDashboardView() {
   const { logout, updateUser, user } = useAuth();
+  const { properties: managedProperties } = usePropertyStore();
   const {
     bookings: initialBookings,
     announcements: initialAnnouncements,
@@ -876,8 +882,14 @@ export default function TenantDashboardView() {
   const [sortOption, setSortOption] = useState("newest");
   const [savedSortOption, setSavedSortOption] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
-  const [browseVisibleCount, setBrowseVisibleCount] = useState(listingsPageSize);
-  const [savedVisibleCount, setSavedVisibleCount] = useState(listingsPageSize);
+  const [browsePagination, setBrowsePagination] = useState({
+    count: listingsPageSize,
+    key: "",
+  });
+  const [savedPagination, setSavedPagination] = useState({
+    count: listingsPageSize,
+    key: "",
+  });
   const [savedHomeIds, setSavedHomeIds] = useState(() =>
     listings.filter((listing) => listing.isSaved).map((listing) => listing.id)
   );
@@ -893,13 +905,13 @@ export default function TenantDashboardView() {
     mode: "viewing",
   });
   const [detailsListing, setDetailsListing] = useState(null);
+  const [selectedManagedProperty, setSelectedManagedProperty] = useState(null);
   const [landlordReviews, setLandlordReviews] = useState(
     landlordTrustResponse.data.reviews
   );
   const [selectedLandlordId, setSelectedLandlordId] = useState(
     verifiedLandlords[0]?.id ?? null
   );
-  const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isLoadingListings, setIsLoadingListings] = useState(false);
   const [rentPaymentDetails, setRentPaymentDetails] = useState(initialRentPayment);
   const [paymentHistory, setPaymentHistory] = useState(initialRentHistory);
@@ -936,6 +948,7 @@ export default function TenantDashboardView() {
       isProfileModalOpen ||
       Boolean(requestModalState.listing) ||
       Boolean(detailsListing) ||
+      Boolean(selectedManagedProperty) ||
       Boolean(receiptPreviewId)
   );
 
@@ -945,6 +958,7 @@ export default function TenantDashboardView() {
       isProfileModalOpen ||
       Boolean(requestModalState.listing) ||
       Boolean(detailsListing) ||
+      Boolean(selectedManagedProperty) ||
       Boolean(receiptPreviewId);
 
     if (!hasOverlay) {
@@ -963,6 +977,11 @@ export default function TenantDashboardView() {
 
       if (detailsListing) {
         setDetailsListing(null);
+        return;
+      }
+
+      if (selectedManagedProperty) {
+        setSelectedManagedProperty(null);
         return;
       }
 
@@ -990,19 +1009,8 @@ export default function TenantDashboardView() {
     isProfileModalOpen,
     receiptPreviewId,
     requestModalState.listing,
+    selectedManagedProperty,
   ]);
-
-  useEffect(() => {
-    if (!feedbackMessage) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setFeedbackMessage("");
-    }, 2200);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [feedbackMessage]);
 
   useEffect(
     () => () => {
@@ -1021,8 +1029,22 @@ export default function TenantDashboardView() {
     ) ??
     mainNavSections[0] ??
     preferenceSection;
+  const showFeedback = (message, tone = "success") => {
+    if (tone === "error") {
+      showErrorToast(message);
+      return;
+    }
+
+    if (tone === "info") {
+      showInfoToast(message);
+      return;
+    }
+
+    showSuccessToast(message);
+  };
   const activeSectionTitle = activeSection?.title ?? "Dashboard";
   const activeItemLabel = activeItem?.label ?? defaultActiveItemLabel;
+  const isMyPropertiesView = activeItemLabel === "My Properties";
   const isDashboardOverviewView = activeItemLabel === "Dashboard";
   const isBookingsView =
     activeItemLabel === "Bookings" || activeItemLabel === "Booking";
@@ -1042,6 +1064,7 @@ export default function TenantDashboardView() {
   const isHelpView = activeItemLabel === "Help";
   const isTermsView = activeItemLabel === "Terms & Conditions";
   const hasDedicatedView =
+    isMyPropertiesView ||
     isDashboardOverviewView ||
     isBookingsView ||
     isDocumentsView ||
@@ -1075,9 +1098,34 @@ export default function TenantDashboardView() {
   const selectedPropertyTypesKey = selectedPropertyTypes.join("|");
   const selectedAmenitiesKey = selectedAmenities.join("|");
   const savedHomeIdsKey = savedHomeIds.join("|");
+  const browseQueryKey = [
+    activeItemLabel,
+    bathrooms,
+    bedrooms,
+    budgetCurrent,
+    searchValue,
+    selectedAmenitiesKey,
+    selectedAreasKey,
+    selectedPropertyTypesKey,
+    showSavedOnly,
+    sortOption,
+  ].join("::");
+  const savedQueryKey = [savedHomeIdsKey, savedSortOption, viewMode].join("::");
+  const listingsLoadingKey = isBrowseHomesView
+    ? ["browse", browseQueryKey, savedHomeIdsKey, viewMode].join("::")
+    : isSavedHomesView
+      ? ["saved", savedQueryKey].join("::")
+      : "";
   const verifiedLandlordsById = Object.fromEntries(
     verifiedLandlords.map((landlord) => [landlord.id, landlord])
   );
+  const tenantProfile = {
+    email: tenantSettings.profile.email ?? user?.email ?? "",
+    name: tenantSettings.profile.name ?? profileName,
+  };
+  const tenantManagedProperties = managedProperties
+    .filter((property) => isPropertyVisibleToTenant(property, tenantProfile))
+    .map((property) => mapManagedPropertyToTenantCard(property));
   const selectedLandlord =
     verifiedLandlordsById[selectedLandlordId] ?? verifiedLandlords[0] ?? null;
   const previewReceipt =
@@ -1277,54 +1325,37 @@ export default function TenantDashboardView() {
     return savedHomeIds.indexOf(left.id) - savedHomeIds.indexOf(right.id);
   });
 
+  const browseVisibleCount =
+    browsePagination.key === browseQueryKey
+      ? browsePagination.count
+      : listingsPageSize;
+  const savedVisibleCount =
+    savedPagination.key === savedQueryKey
+      ? savedPagination.count
+      : listingsPageSize;
   const browseListingsToRender = sortedBrowseListings.slice(0, browseVisibleCount);
   const savedListingsToRender = sortedSavedListings.slice(0, savedVisibleCount);
 
   useEffect(() => {
-    setBrowseVisibleCount(listingsPageSize);
-  }, [
-    activeItemLabel,
-    bathrooms,
-    bedrooms,
-    budgetCurrent,
-    searchValue,
-    selectedAmenitiesKey,
-    selectedAreasKey,
-    selectedPropertyTypesKey,
-    showSavedOnly,
-    sortOption,
-  ]);
-
-  useEffect(() => {
-    setSavedVisibleCount(listingsPageSize);
-  }, [savedHomeIdsKey, savedSortOption, viewMode]);
-
-  useEffect(() => {
-    if (!(isBrowseHomesView || isSavedHomesView)) {
+    if (!listingsLoadingKey) {
       return;
     }
 
-    setIsLoadingListings(true);
-    const timeoutId = window.setTimeout(() => {
-      setIsLoadingListings(false);
-    }, 180);
+    let hideTimeoutId = null;
+    const showTimeoutId = window.setTimeout(() => {
+      setIsLoadingListings(true);
+      hideTimeoutId = window.setTimeout(() => {
+        setIsLoadingListings(false);
+      }, 180);
+    }, 0);
 
-    return () => window.clearTimeout(timeoutId);
-  }, [
-    activeItemLabel,
-    bathrooms,
-    bedrooms,
-    budgetCurrent,
-    savedHomeIdsKey,
-    savedSortOption,
-    searchValue,
-    selectedAmenitiesKey,
-    selectedAreasKey,
-    selectedPropertyTypesKey,
-    showSavedOnly,
-    sortOption,
-    viewMode,
-  ]);
+    return () => {
+      window.clearTimeout(showTimeoutId);
+      if (hideTimeoutId) {
+        window.clearTimeout(hideTimeoutId);
+      }
+    };
+  }, [listingsLoadingKey]);
 
   const handleSectionToggle = (sectionId) => {
     setExpandedSections((current) => ({
@@ -1421,7 +1452,7 @@ export default function TenantDashboardView() {
       role: user?.role ?? fallbackUser.role,
     });
     setIsProfileModalOpen(false);
-    setFeedbackMessage("Profile updated successfully.");
+    showFeedback("Profile updated successfully.");
   };
 
   const toggleAreaFilter = (area) => {
@@ -1521,10 +1552,11 @@ export default function TenantDashboardView() {
       };
     });
 
-    setFeedbackMessage(
+    showFeedback(
       nextReminderState
         ? "We will remind you before the due date."
-        : "Due date reminder turned off."
+        : "Due date reminder turned off.",
+      "info"
     );
   };
 
@@ -1549,13 +1581,13 @@ export default function TenantDashboardView() {
     const receiptWindow = window.open("", "_blank", "noopener,noreferrer");
 
     if (!receiptWindow) {
-      setFeedbackMessage("Please allow pop-ups to save the receipt as PDF.");
+      showFeedback("Please allow pop-ups to save the receipt as PDF.", "error");
       return;
     }
 
     receiptWindow.document.write(buildPrintableReceiptHtml(receipt));
     receiptWindow.document.close();
-    setFeedbackMessage(`Receipt ${receipt.id} is ready to print or save as PDF.`);
+    showFeedback(`Receipt ${receipt.id} is ready to print or save as PDF.`, "info");
   };
 
   const handleViewReceiptFromHistory = (receiptId) => {
@@ -1586,7 +1618,7 @@ export default function TenantDashboardView() {
     };
 
     setBookingRecords((current) => [nextBooking, ...current]);
-    setFeedbackMessage(`${title} has been added to your bookings.`);
+    showFeedback(`${title} has been added to your bookings.`);
   };
 
   const handleDownloadDocument = (document) => {
@@ -1594,12 +1626,12 @@ export default function TenantDashboardView() {
       return;
     }
 
-    setFeedbackMessage(`${document.name} is ready for download.`);
+    showFeedback(`${document.name} is ready for download.`, "info");
   };
 
   const handlePayRent = () => {
     if (rentPaymentDetails.paymentStatus === "Paid") {
-      setFeedbackMessage("This rent invoice is already marked as paid.");
+      showFeedback("This rent invoice is already marked as paid.", "info");
       return;
     }
 
@@ -1646,7 +1678,7 @@ export default function TenantDashboardView() {
     setPaymentHistory((current) => [nextHistoryEntry, ...current]);
     setReceiptRecords((current) => [nextReceipt, ...current]);
     setSelectedReceiptId(receiptId);
-    setFeedbackMessage(
+    showFeedback(
       `Rent payment recorded successfully via ${selectedMethod?.label ?? "your selected method"}.`
     );
   };
@@ -1678,17 +1710,18 @@ export default function TenantDashboardView() {
       phone: normalizedSettings.profile.phone,
       role: user?.role ?? fallbackUser.role,
     });
-    setFeedbackMessage("Settings updated successfully.");
+    showFeedback("Settings updated successfully.");
   };
 
   const handleOpenSupportChat = () => {
-    setFeedbackMessage("Support chat request started. We will follow up shortly.");
+    showFeedback("Support chat request started. We will follow up shortly.", "info");
   };
 
   const handleToggleTermsAcceptance = (nextAccepted) => {
     setTermsAccepted(nextAccepted);
-    setFeedbackMessage(
-      nextAccepted ? "Terms accepted successfully." : "Terms acceptance removed."
+    showFeedback(
+      nextAccepted ? "Terms accepted successfully." : "Terms acceptance removed.",
+      nextAccepted ? "success" : "info"
     );
   };
 
@@ -1711,7 +1744,7 @@ export default function TenantDashboardView() {
     };
 
     setIssueReports((current) => [nextIssue, ...current]);
-    setFeedbackMessage("Issue report submitted successfully.");
+    showFeedback("Issue report submitted successfully.");
   };
 
   const handleCreateServiceRequest = ({
@@ -1732,7 +1765,7 @@ export default function TenantDashboardView() {
     };
 
     setServiceRequests((current) => [nextRequest, ...current]);
-    setFeedbackMessage("New service request created.");
+    showFeedback("New service request created.");
   };
 
   const handleOpenAnnouncement = (announcementId) => {
@@ -1850,7 +1883,10 @@ export default function TenantDashboardView() {
       return nextState;
     });
 
-    setFeedbackMessage(isSaved ? "Removed from saved" : "Added to saved homes");
+    showFeedback(
+      isSaved ? "Removed from saved homes." : "Added to saved homes.",
+      isSaved ? "info" : "success"
+    );
   };
 
   const openRequestModal = (listing, mode = "viewing") => {
@@ -1862,7 +1898,7 @@ export default function TenantDashboardView() {
   };
 
   const handleSubmitRequest = ({ listing, mode }) => {
-    setFeedbackMessage(
+    showFeedback(
       mode === "contact"
         ? `Message sent for ${listing.title}`
         : `Viewing requested for ${listing.title}`
@@ -1876,6 +1912,14 @@ export default function TenantDashboardView() {
 
   const closeDetailsModal = () => {
     setDetailsListing(null);
+  };
+
+  const openManagedPropertyDetails = (property) => {
+    setSelectedManagedProperty(property);
+  };
+
+  const closeManagedPropertyDetails = () => {
+    setSelectedManagedProperty(null);
   };
 
   const handleOpenRequestFromDetails = (listing, mode) => {
@@ -1934,7 +1978,7 @@ export default function TenantDashboardView() {
       ...current,
     ]);
     setSelectedLandlordId(landlordId);
-    setFeedbackMessage("Review submitted");
+    showFeedback("Review submitted.");
   };
 
   const renderDashboardOverviewView = () => (
@@ -1961,6 +2005,13 @@ export default function TenantDashboardView() {
     <TenantDocumentsView
       documents={initialDocuments}
       onDownloadDocument={handleDownloadDocument}
+    />
+  );
+
+  const renderMyPropertiesView = () => (
+    <TenantMyPropertiesView
+      onViewDetails={openManagedPropertyDetails}
+      properties={tenantManagedProperties}
     />
   );
 
@@ -2465,7 +2516,13 @@ export default function TenantDashboardView() {
                   <button
                     type="button"
                     onClick={() =>
-                      setBrowseVisibleCount((current) => current + listingsPageSize)
+                      setBrowsePagination((current) => ({
+                        count:
+                          (current.key === browseQueryKey
+                            ? current.count
+                            : listingsPageSize) + listingsPageSize,
+                        key: browseQueryKey,
+                      }))
                     }
                     className="rounded-full bg-[#18399F] px-5 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#102A74]"
                   >
@@ -2633,7 +2690,13 @@ export default function TenantDashboardView() {
               <button
                 type="button"
                 onClick={() =>
-                  setSavedVisibleCount((current) => current + listingsPageSize)
+                  setSavedPagination((current) => ({
+                    count:
+                      (current.key === savedQueryKey
+                        ? current.count
+                        : listingsPageSize) + listingsPageSize,
+                    key: savedQueryKey,
+                  }))
                 }
                 className="rounded-full bg-[#18399F] px-5 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#102A74]"
               >
@@ -2653,7 +2716,7 @@ export default function TenantDashboardView() {
           </p>
           <button
             type="button"
-            onClick={() => selectNavItemByLabel(defaultActiveItemLabel)}
+            onClick={() => selectNavItemByLabel("Browse Homes")}
             className="mt-6 rounded-full bg-[#18399F] px-5 py-3 text-sm font-semibold text-white transition-colors duration-300 hover:bg-[#102A74]"
           >
             Browse Homes
@@ -2920,6 +2983,7 @@ export default function TenantDashboardView() {
           </header>
 
           <main className="flex-1 px-4 py-4 sm:px-6 lg:min-h-0 lg:px-7 lg:py-5">
+            {isMyPropertiesView ? renderMyPropertiesView() : null}
             {isDashboardOverviewView ? renderDashboardOverviewView() : null}
             {isBookingsView ? renderBookingsView() : null}
             {isDocumentsView ? renderDocumentsView() : null}
@@ -3113,11 +3177,17 @@ export default function TenantDashboardView() {
 
       {requestModalState.listing ? (
         <RequestActionModal
+          key={`${requestModalState.mode}-${requestModalState.listing.id}`}
           modalState={requestModalState}
           onClose={closeRequestModal}
           onSubmit={handleSubmitRequest}
         />
       ) : null}
+
+      <TenantPropertyDetailsModal
+        onClose={closeManagedPropertyDetails}
+        property={selectedManagedProperty}
+      />
 
       <PropertyDetailsModal
         landlord={detailsListing ? getLandlordById(detailsListing.landlordId) : null}
@@ -3149,16 +3219,6 @@ export default function TenantDashboardView() {
         }
       />
 
-      <div
-        className={classNames(
-          "fixed bottom-5 right-5 z-[90] rounded-full bg-[#102A74] px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(13,29,76,0.24)] transition-all duration-300",
-          feedbackMessage
-            ? "translate-y-0 opacity-100"
-            : "pointer-events-none translate-y-3 opacity-0"
-        )}
-      >
-        {feedbackMessage}
-      </div>
     </div>
   );
 }

@@ -1,129 +1,279 @@
-# MS Frontend
+# RMS Full Stack App
 
-MS is a frontend rental management experience built with React, Vite, React Router, and Tailwind CSS. The current app ships a marketing landing page, auth flows backed by local mock state, and a protected dashboard shell ready for real API integration.
+RMS is a rental management application with an existing React frontend and a Node.js + Express backend. The backend is organized for easy editing and uses PostgreSQL, Prisma, Cloudinary, and JWT authentication.
 
-## What Is Included
+## Stack
 
-- Responsive landing page with modular home sections
-- Login and sign-up flows using local storage backed demo auth
-- Protected dashboard route with mock activity, stats, and task data
-- Shared layout system for marketing, auth, and app screens
-- Reusable UI primitives, navigation, and reveal animations
+- Frontend: React 19, Vite, React Router
+- Backend: Node.js, Express
+- Database: PostgreSQL
+- ORM: Prisma
+- Auth: JWT + bcrypt password hashing
+- File storage: Cloudinary
 
-## Tech Stack
+## Backend Features
 
-- React 19
-- Vite
-- React Router DOM
-- Tailwind CSS v4
-- Lucide React
-- ESLint
+- Admin-only user creation
+- Roles: `admin`, `landlord`, `tenant`
+- JWT login and protected route middleware
+- Role-based access control
+- Property CRUD for landlords and admins
+- Multiple Cloudinary images per property
+- Admin-managed blog system with public read endpoints
+- Centralized validation and error responses
 
-## Getting Started
+## Folder Structure
+
+```text
+backend/
+  .env.example
+  prisma/
+    schema.prisma
+    seed.js
+  server/
+    app.js
+    config/
+      cloudinary.js
+      env.js
+      prisma.js
+    constants/
+      roles.js
+    controllers/
+    middleware/
+    routes/
+    services/
+    utils/
+    validators/
+  server.js
+src/
+  components/
+  context/
+  layouts/
+  pages/
+  routes/
+```
+
+## Prisma Models
+
+The Prisma schema lives in [backend/prisma/schema.prisma](/c:/Users/Gallopsea/OneDrive/Documents/Projects/RMs/backend/prisma/schema.prisma).
+
+- `User`: stores name, email, hashed password, and role
+- `Property`: stores listing details and the owner relation
+- `PropertyImage`: stores Cloudinary image URLs and public IDs for each property
+- `Blog`: stores landing-page blog content and optional Cloudinary image metadata
+
+## Environment Setup
+
+1. Copy `backend/.env.example` to `backend/.env`.
+2. Fill in your real values.
+
+```env
+PORT=5000
+NODE_ENV=development
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/rms_db?schema=public"
+CLIENT_ORIGIN="http://localhost:5173,https://your-frontend.example.com"
+JWT_SECRET="replace-this-with-a-long-random-secret"
+JWT_EXPIRES_IN="7d"
+CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_API_KEY="your-cloudinary-api-key"
+CLOUDINARY_API_SECRET="your-cloudinary-api-secret"
+ADMIN_NAME="System Admin"
+ADMIN_EMAIL="admin@example.com"
+ADMIN_PASSWORD="ChangeMe123!"
+```
+
+`CLIENT_ORIGIN` accepts one frontend URL or a comma-separated list.
+
+## Install And Run
 
 ### Requirements
 
 - Node.js 20+
 - npm 10+
+- PostgreSQL
 
-### Install And Run
+### 1. Install Dependencies
 
 ```bash
 npm install
+```
+
+### 2. Create The Database
+
+Create a PostgreSQL database that matches the name in `DATABASE_URL`.
+
+### 3. Run Prisma Migration
+
+```bash
+npm run prisma:migrate -- --name init
+```
+
+### 4. Seed The First Admin
+
+The seed script creates or updates the initial admin account from your env file.
+
+```bash
+npm run db:seed
+```
+
+### 5. Start The Apps
+
+Frontend:
+
+```bash
 npm run dev
 ```
 
-Open the local Vite URL shown in the terminal after the dev server starts.
+Backend API:
+
+```bash
+npm run server:dev
+```
+
+Production server after building the frontend:
+
+```bash
+npm run build
+npm start
+```
 
 ## Available Scripts
 
 ```bash
 npm run dev
+npm run dev:client
+npm run server:dev
 npm run build
 npm start
-npm run preview
 npm run lint
+npm run prisma:generate
+npm run prisma:migrate -- --name init
+npm run prisma:deploy
+npm run prisma:studio
+npm run db:seed
 ```
 
-`npm start` serves the production `dist` build through a small Node server with SPA route fallback. This is the command to use for Render web services.
+## API Overview
 
-## Current App Behavior
+All API responses use the same shape:
 
-### Routes
+```json
+{
+  "success": true,
+  "message": "Optional message",
+  "data": {}
+}
+```
 
-- `/` renders the marketing landing page
-- `/login` renders the guest-only login screen
-- `/signup` renders the guest-only registration screen
-- `/dashboard` renders the protected dashboard shell
-- `*` renders the not-found screen
+Validation errors return `success: false` and an `errors` array when useful.
 
-### Demo Authentication
+### Auth
 
-Authentication is currently frontend-only. User data is stored in `localStorage` under `MS-auth-user`, and the auth context exposes `login`, `register`, and `logout` helpers for the demo flows.
+- `POST /auth/login`
+- `GET /auth/me`
 
-### Data Sources
+Sample login body:
 
-- Landing page content is configured directly in the home page module
-- Dashboard cards and activity feed use mock data from `src/data/mockApi/dashboard.js`
+```json
+{
+  "email": "admin@example.com",
+  "password": "ChangeMe123!"
+}
+```
 
-## Project Structure
+Use the returned token in the `Authorization` header:
 
 ```text
-src/
-  assets/
-  components/
-    cards/
-    common/
-    navigation/
-    sections/
-  context/
-  data/
-    mockApi/
-  hooks/
-  layouts/
-  pages/
-    auth/
-    dashboard/
-    home/
-    not-found/
-  routes/
-  utils/
-docs/
-  MAINTENANCE.md
-CHANGELOG.md
+Authorization: Bearer your-jwt-token
 ```
 
-## Architecture Notes
+### Users
 
-- `src/layouts/` contains route-level shells such as `MainLayout`, `AuthLayout`, and `DashboardLayout`.
-- `src/components/sections/` contains the landing page sections used by the home route.
-- `src/components/common/` holds shared UI primitives and app helpers.
-- `src/context/` manages shared state such as authentication and app shell behavior.
-- `src/data/mockApi/` keeps demo payloads shaped like future backend responses.
-- `src/hooks/` contains reusable UI utilities such as scroll reveal and body scroll locking.
+- `GET /users` admin only
+- `POST /users` admin only
+- `PATCH /users/:id/role` admin only
+- `DELETE /users/:id` admin only
 
-## Documentation Workflow
+Sample create user body:
 
-Documentation is treated as part of the work, not a follow-up task.
+```json
+{
+  "name": "Amina Hassan",
+  "email": "amina@example.com",
+  "password": "StrongPass123!",
+  "role": "landlord"
+}
+```
 
-- Update `CHANGELOG.md` whenever code or project setup changes
-- Update this `README.md` when routes, setup steps, architecture, or scripts change
-- Review `docs/MAINTENANCE.md` before larger updates
+### Properties
 
-## Render Deployment
+- `GET /properties` public
+- `GET /properties/:id` public
+- `GET /properties/mine` admin or landlord
+- `POST /properties` admin or landlord
+- `PUT /properties/:id` admin or landlord
+- `DELETE /properties/:id` admin or landlord
+- `DELETE /properties/:propertyId/images/:imageId` admin or landlord
 
-For a Render web service, use:
+Sample create property body:
+
+```json
+{
+  "title": "Modern Duplex",
+  "description": "A spacious duplex close to schools and transit.",
+  "price": 1850,
+  "location": "Accra, Ghana"
+}
+```
+
+Admins can also set `ownerId` when creating or updating a property.
+
+### Uploads
+
+- `POST /uploads/properties/:propertyId/images` admin or landlord
+- `POST /uploads/blogs/image` admin only
+
+Property image uploads should use `multipart/form-data` with the field name `images`.
+Blog image uploads should use `multipart/form-data` with the field name `image`.
+
+Recommended property flow:
+
+1. Create the property with `POST /properties`
+2. Upload one or more images to `POST /uploads/properties/:propertyId/images`
+
+### Blogs
+
+- `GET /blogs` public
+- `GET /blogs/:id` public
+- `POST /blogs` admin only
+- `PATCH /blogs/:id` admin only
+- `DELETE /blogs/:id` admin only
+
+Blog create and update routes support either JSON bodies or `multipart/form-data` when uploading an image directly.
+
+Sample create blog body:
+
+```json
+{
+  "title": "How To Prepare A Rental Unit",
+  "content": "Start with a full inspection, complete repairs, and document the unit before listing it."
+}
+```
+
+## Notes For Frontend Integration
+
+- The API is mounted at the root path, so your frontend can call `/auth`, `/users`, `/properties`, `/uploads`, and `/blogs`.
+- The backend allows one or many frontend origins through `CLIENT_ORIGIN`.
+- The first admin is created through Prisma seed so account creation stays admin-only.
+- Property and blog images are stored in Cloudinary, while the returned URLs and public IDs are stored in PostgreSQL through Prisma.
+
+## Deployment
+
+For Render or similar Node hosts:
 
 ```bash
 Build Command: npm install && npm run build
 Start Command: npm start
 ```
 
-The production server binds to `0.0.0.0` and uses Render's `PORT` environment variable automatically.
-
-## Suggested Next Steps
-
-- Replace mock auth and dashboard data with real backend endpoints
-- Add form validation and submission handling for auth flows
-- Connect the blog and FAQ content to a CMS or API when content ownership is defined
-- Add tests around routing, auth guards, and critical UI states
+Set the same environment variables from `backend/.env.example` in your hosting dashboard.

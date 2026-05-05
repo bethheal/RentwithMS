@@ -73,35 +73,35 @@ function ReviewComposer({
   );
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+  const resolvedLandlordId = landlords.some(
+    (landlord) => landlord.id === selectedLandlordId
+  )
+    ? selectedLandlordId
+    : landlordId ?? landlords[0]?.id ?? "";
 
   const availableListings = useMemo(
     () =>
       listings.filter((listing) =>
-        selectedLandlordId ? listing.landlordId === selectedLandlordId : true
+        resolvedLandlordId ? listing.landlordId === resolvedLandlordId : true
       ),
-    [listings, selectedLandlordId]
+    [listings, resolvedLandlordId]
   );
-
-  useEffect(() => {
-    if (landlordId) {
-      setSelectedLandlordId(landlordId);
-    }
-  }, [landlordId]);
-
-  useEffect(() => {
-    setSelectedPropertyId(availableListings[0]?.id ?? "");
-  }, [availableListings]);
+  const resolvedPropertyId = availableListings.some(
+    (listing) => listing.id === selectedPropertyId
+  )
+    ? selectedPropertyId
+    : availableListings[0]?.id ?? "";
 
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    if (!selectedLandlordId || !selectedPropertyId || !comment.trim()) {
+    if (!resolvedLandlordId || !resolvedPropertyId || !comment.trim()) {
       return;
     }
 
     onSubmit({
-      landlordId: selectedLandlordId,
-      propertyId: selectedPropertyId,
+      landlordId: resolvedLandlordId,
+      propertyId: resolvedPropertyId,
       rating,
       comment: comment.trim(),
       tenantName,
@@ -130,7 +130,7 @@ function ReviewComposer({
               Landlord
             </span>
             <select
-              value={selectedLandlordId}
+              value={resolvedLandlordId}
               onChange={(event) => setSelectedLandlordId(event.target.value)}
               className="h-11 w-full rounded-[1rem] border border-[#DCE5F7] bg-[#FBFDFF] px-4 text-sm text-slate-700 outline-none transition focus:border-[#18399F]"
             >
@@ -148,7 +148,7 @@ function ReviewComposer({
             Property
           </span>
           <select
-            value={selectedPropertyId}
+            value={resolvedPropertyId}
             onChange={(event) => setSelectedPropertyId(event.target.value)}
             className="h-11 w-full rounded-[1rem] border border-[#DCE5F7] bg-[#FBFDFF] px-4 text-sm text-slate-700 outline-none transition focus:border-[#18399F]"
           >
@@ -182,10 +182,10 @@ function ReviewComposer({
 
       <button
         type="submit"
-        disabled={!selectedLandlordId || !selectedPropertyId || !comment.trim()}
+        disabled={!resolvedLandlordId || !resolvedPropertyId || !comment.trim()}
         className={classNames(
           "mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold text-white transition-colors duration-300",
-          selectedLandlordId && selectedPropertyId && comment.trim()
+          resolvedLandlordId && resolvedPropertyId && comment.trim()
             ? "bg-[#18399F] hover:bg-[#102A74]"
             : "cursor-not-allowed bg-[#B8C7F3]"
         )}

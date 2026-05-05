@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  landlord
+  tenant
+}
+
+model User {
+  id           String     @id @default(uuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(tenant)
+  properties   Property[] @relation("PropertyOwner")
+  blogPosts    Blog[]     @relation("BlogAuthor")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([role])
+}
+
+model Property {
+  id          String          @id @default(uuid())
+  title       String
+  description String          @db.Text
+  price       Decimal         @db.Decimal(10, 2)
+  location    String
+  ownerId     String
+  owner       User            @relation("PropertyOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  images      PropertyImage[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([ownerId])
+  @@index([createdAt])
+}
+
+model PropertyImage {
+  id                 String   @id @default(uuid())
+  url                String
+  cloudinaryPublicId String   @unique
+  propertyId         String
+  property           Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt          DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+model Blog {
+  id            String   @id @default(uuid())
+  title         String
+  content       String   @db.Text
+  imageUrl      String?
+  imagePublicId String?  @unique
+  authorId      String
+  author        User     @relation("BlogAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([authorId])
+  @@index([createdAt])
+}

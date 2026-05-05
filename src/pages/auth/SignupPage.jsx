@@ -1,109 +1,144 @@
-import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import AuthFormField from "../../components/auth/AuthFormField.jsx";
-import AuthModeShell from "../../components/auth/AuthModeShell.jsx";
-import AuthRoleSelectionStep from "../../components/auth/AuthRoleSelectionStep.jsx";
-import TermsAndConditionsModal from "../../components/auth/TermsAndConditionsModal.jsx";
+import { useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import AuthFormField from '../../components/auth/AuthFormField.jsx'
+import AuthModeShell from '../../components/auth/AuthModeShell.jsx'
+import AuthRoleSelectionStep from '../../components/auth/AuthRoleSelectionStep.jsx'
+import TermsAndConditionsModal from '../../components/auth/TermsAndConditionsModal.jsx'
 import {
   authRoleContent,
   normalizeAuthRole,
-} from "../../components/auth/authRoleConfig.js";
-import { useAuth } from "../../context/AuthContext.jsx";
+} from '../../components/auth/authRoleConfig.js'
+import { useAuth } from '../../context/AuthContext.jsx'
+import { requestGoogleIdToken } from '../../utils/googleAuth.js'
+import { showErrorToast } from '../../utils/toast.js'
 
 const initialState = {
-  fullName: "",
-  email: "",
-  password: "",
-  confirmPassword: "",
+  fullName: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
   acceptedTerms: false,
-};
+}
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
 
 export default function SignupPage() {
-  const [searchParams] = useSearchParams();
-  const roleKey = normalizeAuthRole(searchParams.get("role"));
+  const [searchParams] = useSearchParams()
+  const roleKey = normalizeAuthRole(searchParams.get('role'))
 
   if (!roleKey) {
-    return <AuthRoleSelectionStep mode="signup" />;
+    return <AuthRoleSelectionStep mode="signup" />
   }
 
-  return <SignupRoleForm key={roleKey} roleKey={roleKey} />;
+  return <SignupRoleForm key={roleKey} roleKey={roleKey} />
 }
 
 function SignupRoleForm({ roleKey }) {
-  const navigate = useNavigate();
-  const { register } = useAuth();
-  const roleConfig = authRoleContent[roleKey];
-  const [formValues, setFormValues] = useState(initialState);
-  const [formError, setFormError] = useState("");
-  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const navigate = useNavigate()
+  const { loginWithGoogle, register } = useAuth()
+  const roleConfig = authRoleContent[roleKey]
+  const [formValues, setFormValues] = useState(initialState)
+  const [formError, setFormError] = useState('')
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
 
   const handleChange = (event) => {
-    const { checked, name, type, value } = event.target;
+    const { checked, name, type, value } = event.target
 
     if (name === "acceptedTerms" && checked) {
-      setFormError("");
+      setFormError('')
     }
 
     setFormValues((current) => ({
       ...current,
       [name]: type === "checkbox" ? checked : value,
-    }));
-  };
+    }))
 
-  const completeSignup = ({ fullName, email }) => {
-    register({
-      fullName: fullName || roleConfig.defaultName,
-      email: email || roleConfig.defaultEmail,
-      role: roleConfig.label,
-    });
+    if (formError && name !== 'acceptedTerms') {
+      setFormError('')
+    }
+  }
 
-    navigate("/dashboard");
-  };
+  const handleGoogleSignup = async () => {
+    if (!formValues.acceptedTerms) {
+      setFormError('Please agree to the terms and conditions to continue.')
+      showErrorToast('Please agree to the terms and conditions to continue.')
+      return
+    }
 
-  const handleGoogleSignup = () => {
-    completeSignup({
-      fullName: roleConfig.googleSignupName,
-      email: roleConfig.googleSignupEmail,
-    });
-  };
+    try {
+      setIsGoogleLoading(true)
+      setFormError('')
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
+      const idToken = await requestGoogleIdToken(googleClientId)
+      await loginWithGoogle({
+        idToken,
+        role: roleKey,
+      })
+
+      navigate('/dashboard')
+    } catch (error) {
+      const nextMessage = error.message || 'Google signup could not be completed.'
+      setFormError(nextMessage)
+      showErrorToast(error, 'Google signup could not be completed.')
+    } finally {
+      setIsGoogleLoading(false)
+    }
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
 
     if (formValues.password !== formValues.confirmPassword) {
-      setFormError("Passwords do not match yet.");
-      return;
+      setFormError('Passwords do not match yet.')
+      showErrorToast('Passwords do not match yet.')
+      return
     }
 
     if (!formValues.acceptedTerms) {
-      setFormError("Please agree to the terms and conditions to continue.");
-      return;
+      setFormError('Please agree to the terms and conditions to continue.')
+      showErrorToast('Please agree to the terms and conditions to continue.')
+      return
     }
 
-    setFormError("");
+    try {
+      setIsSubmitting(true)
+      setFormError('')
 
-    completeSignup({
-      fullName: formValues.fullName,
-      email: formValues.email,
-    });
-  };
+      await register({
+        name: formValues.fullName,
+        email: formValues.email,
+        password: formValues.password,
+        confirmPassword: formValues.confirmPassword,
+        role: roleKey,
+      })
+
+      navigate('/dashboard')
+    } catch (error) {
+      const nextMessage = error.message || 'Signup failed.'
+      setFormError(nextMessage)
+      showErrorToast(error, 'Signup failed.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const handleAgreeToTerms = () => {
     setFormValues((current) => ({
       ...current,
       acceptedTerms: true,
-    }));
-    setFormError("");
-    setIsTermsModalOpen(false);
-  };
+    }))
+    setFormError('')
+    setIsTermsModalOpen(false)
+  }
 
   const handleDisagreeToTerms = () => {
     setFormValues((current) => ({
       ...current,
       acceptedTerms: false,
-    }));
-    setIsTermsModalOpen(false);
-  };
+    }))
+    setIsTermsModalOpen(false)
+  }
 
   return (
     <>
@@ -111,12 +146,15 @@ function SignupRoleForm({ roleKey }) {
         backAriaLabel="Back to role selection"
         backTo="/signup"
         formId="signup-form"
+        googleDisabled={isSubmitting || isGoogleLoading}
         googleLabel="Sign up with Google"
+        isGoogleLoading={isGoogleLoading}
         modeLabel="Signup"
         onGoogleAction={handleGoogleSignup}
         roleKey={roleKey}
         roleLabel={roleConfig.label}
-        submitLabel="Sign Up"
+        submitDisabled={isSubmitting || isGoogleLoading}
+        submitLabel={isSubmitting ? 'Signing Up...' : 'Sign Up'}
         footer={
           <p className="text-[0.72rem] uppercase tracking-[0.34em] text-[#7C86A6]">
             already have an account{" "}
@@ -203,5 +241,5 @@ function SignupRoleForm({ roleKey }) {
         onDisagree={handleDisagreeToTerms}
       />
     </>
-  );
+  )
 }

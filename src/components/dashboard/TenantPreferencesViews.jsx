@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import FaqAccordionItem from "../cards/FaqAccordionItem.jsx";
 import { classNames } from "../../utils/classNames.js";
+import { showErrorToast } from "../../utils/toast.js";
 
 function formatDate(dateString) {
   if (!dateString) {
@@ -166,6 +167,7 @@ export function TenantSettingsView({ onSaveSettings, settings }) {
       passwordDraft.newPassword !== passwordDraft.confirmPassword
     ) {
       setErrorMessage("New password and confirmation do not match.");
+      showErrorToast("New password and confirmation do not match.");
       return;
     }
 

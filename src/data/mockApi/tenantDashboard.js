@@ -17,7 +17,7 @@ export const tenantDashboardResponse = {
     navSections: [
       {
         title: "Homes",
-        items: ["Saved Homes", "Browse Homes"],
+        items: ["My Properties", "Saved Homes", "Browse Homes"],
       },
       {
         title: "Landlords",

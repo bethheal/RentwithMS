@@ -5,16 +5,40 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:client": "vite",
+    "server:dev": "node --watch backend/server.js",
     "build": "vite build",
-    "start": "node server.js",
+    "postinstall": "prisma generate --schema backend/prisma/schema.prisma",
+    "start": "node backend/server.js",
+    "db:seed": "prisma db seed --schema backend/prisma/schema.prisma",
     "lint": "eslint .",
+    "prisma:deploy": "prisma migrate deploy --schema backend/prisma/schema.prisma",
+    "prisma:generate": "prisma generate --schema backend/prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --schema backend/prisma/schema.prisma",
+    "prisma:studio": "prisma studio --schema backend/prisma/schema.prisma",
     "preview": "vite preview"
   },
+  "prisma": {
+    "seed": "node backend/prisma/seed.js"
+  },
   "dependencies": {
+    "@prisma/client": "^6.17.1",
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.8.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "google-auth-library": "^10.6.2",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^1.7.0",
+    "multer": "^2.0.2",
+    "prisma": "^6.17.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router-dom": "^7.14.0"
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^7.14.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

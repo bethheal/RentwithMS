@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Container from '../common/Container.jsx'
+import { showErrorToast, showSuccessToast } from '../../utils/toast.js'
 
 function FacebookIcon({ className = '' }) {
   return (
@@ -47,7 +48,17 @@ export default function FooterSection({ footer }) {
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    setIsSubmitted(Boolean(email.trim()))
+
+    const normalizedEmail = email.trim()
+
+    if (!normalizedEmail) {
+      setIsSubmitted(false)
+      showErrorToast('Enter your email address before subscribing.')
+      return
+    }
+
+    setIsSubmitted(true)
+    showSuccessToast('Thanks for subscribing. We will keep you posted.')
     setEmail('')
   }
 
@@ -108,6 +119,7 @@ export default function FooterSection({ footer }) {
                     <span className="sr-only">Email address</span>
                     <input
                       type="email"
+                      required
                       value={email}
                       onChange={(event) => {
                         setEmail(event.target.value)

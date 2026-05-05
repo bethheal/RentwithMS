@@ -10,11 +10,14 @@ export default function AuthModeShell({
   description,
   footer,
   formId,
+  googleDisabled,
   googleLabel,
+  isGoogleLoading,
   modeLabel,
   onGoogleAction,
   roleKey,
   roleLabel,
+  submitDisabled,
   submitLabel,
 }) {
   return (
@@ -49,18 +52,22 @@ export default function AuthModeShell({
               <h1 className="text-center text-[2rem] font-extrabold uppercase tracking-[0.28em] text-[#18399F] sm:text-[2.25rem]">
                 {modeLabel}
               </h1>
-
-           
+              {description ? (
+                <p className="text-center text-sm leading-7 text-slate-500">
+                  {description}
+                </p>
+              ) : null}
 
               <button
                 type="button"
                 onClick={onGoogleAction}
-                className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-[#D7E2F4] bg-[#F8FAFF] px-5 text-sm font-medium text-[#18399F] shadow-[0_12px_24px_rgba(24,57,159,0.05)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#BFD2FF] hover:bg-white hover:shadow-[0_18px_32px_rgba(24,57,159,0.1)]"
+                disabled={googleDisabled}
+                className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-[#D7E2F4] bg-[#F8FAFF] px-5 text-sm font-medium text-[#18399F] shadow-[0_12px_24px_rgba(24,57,159,0.05)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#BFD2FF] hover:bg-white hover:shadow-[0_18px_32px_rgba(24,57,159,0.1)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-65 disabled:hover:border-[#D7E2F4] disabled:hover:bg-[#F8FAFF] disabled:hover:shadow-[0_12px_24px_rgba(24,57,159,0.05)]"
               >
                 <span className="grid size-8 place-items-center rounded-full bg-white shadow-[0_10px_22px_rgba(24,57,159,0.08)]">
                   <AuthGoogleMark className="size-[1.125rem]" />
                 </span>
-                <span>{googleLabel}</span>
+                <span>{isGoogleLoading ? 'Connecting to Google...' : googleLabel}</span>
               </button>
 
               <div className="flex items-center gap-3 text-[0.72rem] font-medium text-slate-400">
@@ -85,6 +92,20 @@ export default function AuthModeShell({
             </div>
 
             <div className="mt-8">{children}</div>
+
+            {formId && submitLabel ? (
+              <div className="mt-8 lg:hidden">
+                <button
+                  type="submit"
+                  form={formId}
+                  disabled={submitDisabled}
+                  className="inline-flex h-14 w-full items-center justify-center gap-3 rounded-full bg-[#18399F] px-6 text-sm font-extrabold uppercase tracking-[0.24em] text-white shadow-[0_18px_32px_rgba(24,57,159,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#102A74] disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-[#6F89D4] disabled:shadow-none"
+                >
+                  <span>{submitLabel}</span>
+                  <ArrowRight className="size-4" />
+                </button>
+              </div>
+            ) : null}
 
             {footer ? <div className="mt-8">{footer}</div> : null}
           </div>
@@ -131,7 +152,8 @@ export default function AuthModeShell({
             <button
               type="submit"
               form={formId}
-              className="inline-flex items-center gap-3 rounded-full bg-white px-10 py-4 text-sm font-extrabold uppercase tracking-[0.24em] text-[#18399F] shadow-[0_20px_34px_rgba(10,24,76,0.26)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#EEF4FF]"
+              disabled={submitDisabled}
+              className="inline-flex items-center gap-3 rounded-full bg-white px-10 py-4 text-sm font-extrabold uppercase tracking-[0.24em] text-[#18399F] shadow-[0_20px_34px_rgba(10,24,76,0.26)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#EEF4FF] disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-white/75 disabled:text-[#5B70B2] disabled:shadow-none"
             >
               <span>{submitLabel}</span>
               <ArrowRight className="size-4" />
