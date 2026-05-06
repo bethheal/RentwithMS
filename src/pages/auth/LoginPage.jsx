@@ -17,6 +17,25 @@ const emptyState = {
 }
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
 
+function getLoginValidationMessage({ email, password }) {
+  const normalizedEmail = email.trim()
+  const normalizedPassword = password.trim()
+
+  if (!normalizedEmail && !normalizedPassword) {
+    return 'Please fill in all required fields'
+  }
+
+  if (!normalizedEmail) {
+    return 'Please enter your email'
+  }
+
+  if (!normalizedPassword) {
+    return 'Please enter your password'
+  }
+
+  return ''
+}
+
 export default function LoginPage() {
   const [searchParams] = useSearchParams()
   const roleKey = normalizeAuthRole(searchParams.get('role'))
@@ -38,6 +57,18 @@ function LoginRoleForm({ roleKey }) {
   const [formError, setFormError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+
+  const handleForgotPassword = () => {
+    const nextSearchParams = new URLSearchParams()
+
+    if (formValues.email.trim()) {
+      nextSearchParams.set('email', formValues.email.trim())
+    }
+
+    navigate(
+      `/reset-password${nextSearchParams.toString() ? `?${nextSearchParams.toString()}` : ''}`
+    )
+  }
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -74,6 +105,14 @@ function LoginRoleForm({ roleKey }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+
+    const validationMessage = getLoginValidationMessage(formValues)
+
+    if (validationMessage) {
+      setFormError(validationMessage)
+      showErrorToast(validationMessage)
+      return
+    }
 
     try {
       setIsSubmitting(true)
@@ -124,6 +163,7 @@ function LoginRoleForm({ roleKey }) {
           type="email"
           placeholder="name@eg.com"
           value={formValues.email}
+          autoComplete="email"
           onChange={handleChange}
         />
 
@@ -133,6 +173,7 @@ function LoginRoleForm({ roleKey }) {
           type="password"
           placeholder="Min. 8 Character"
           value={formValues.password}
+          autoComplete="current-password"
           onChange={handleChange}
         />
 
@@ -148,6 +189,7 @@ function LoginRoleForm({ roleKey }) {
         <div>
           <button
             type="button"
+            onClick={handleForgotPassword}
             className="text-sm font-semibold text-[#18399F] transition-colors duration-300 hover:text-[#102A74]"
           >
             Forgotten Password?

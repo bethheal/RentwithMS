@@ -40,10 +40,36 @@ export default function AuthRoleArtwork({ roleKey, compact = false }) {
     );
   }
 
+  if (roleKey === "password-reset") {
+    return (
+      <div
+        className={
+          compact
+            ? "relative flex h-24 w-24 items-center justify-center"
+            : "relative flex h-48 w-48 items-center justify-center"
+        }
+        aria-hidden="true"
+      >
+        <KeyRound
+          className={compact ? "size-20 text-white" : "size-36 text-white"}
+          strokeWidth={1.75}
+        />
+        <ShieldCheck
+          className={
+            compact
+              ? "absolute bottom-1 right-0 size-8 text-white"
+              : "absolute bottom-4 right-5 size-14 text-white"
+          }
+          strokeWidth={2.1}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className={
-        compact
+          compact
           ? "relative flex h-24 w-24 items-center justify-center"
           : "relative flex h-48 w-48 items-center justify-center"
       }

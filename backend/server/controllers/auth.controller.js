@@ -4,6 +4,8 @@ import {
   authenticateWithGoogle,
   getAuthenticatedUser,
   loginUser,
+  requestPasswordReset,
+  resetUserPassword,
   signupUser,
 } from '../services/auth.service.js'
 
@@ -45,6 +47,27 @@ export const googleAuth = asyncHandler(async (req, res) => {
       token,
       user: serializeUser(user),
     },
+  })
+})
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const resetDetails = await requestPasswordReset(req.body.email)
+
+  res.status(200).json({
+    success: true,
+    message: resetDetails.resetUrl
+      ? 'Password reset link sent.'
+      : 'If an account exists with that email address, reset instructions are ready.',
+    data: resetDetails,
+  })
+})
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  await resetUserPassword(req.body)
+
+  res.status(200).json({
+    success: true,
+    message: 'Password has been reset successfully.',
   })
 })
 

@@ -21,6 +21,36 @@ const initialState = {
 }
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
 
+function getSignupValidationMessage({ fullName, email, password, confirmPassword }) {
+  const normalizedName = fullName.trim()
+  const normalizedEmail = email.trim()
+  const normalizedPassword = password.trim()
+  const normalizedConfirmPassword = confirmPassword.trim()
+
+  if (!normalizedName || !normalizedEmail || !normalizedPassword || !normalizedConfirmPassword) {
+    return 'Please fill in all required fields'
+  }
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailPattern.test(normalizedEmail)) {
+    return 'Please provide a valid email address.'
+  }
+
+  if (normalizedPassword.length < 8) {
+    return 'Password must be at least 8 characters long.'
+  }
+
+  if (!/[A-Za-z]/.test(normalizedPassword) || !/\d/.test(normalizedPassword)) {
+    return 'Password must include at least one letter and one number.'
+  }
+
+  if (normalizedPassword !== normalizedConfirmPassword) {
+    return 'Passwords do not match.'
+  }
+
+  return ''
+}
+
 export default function SignupPage() {
   const [searchParams] = useSearchParams()
   const roleKey = normalizeAuthRole(searchParams.get('role'))
@@ -89,9 +119,11 @@ function SignupRoleForm({ roleKey }) {
   const handleSubmit = async (event) => {
     event.preventDefault()
 
-    if (formValues.password !== formValues.confirmPassword) {
-      setFormError('Passwords do not match yet.')
-      showErrorToast('Passwords do not match yet.')
+    const validationMessage = getSignupValidationMessage(formValues)
+
+    if (validationMessage) {
+      setFormError(validationMessage)
+      showErrorToast(validationMessage)
       return
     }
 
@@ -182,6 +214,7 @@ function SignupRoleForm({ roleKey }) {
             type="email"
             placeholder="name@eg.com"
             value={formValues.email}
+            autoComplete="email"
             onChange={handleChange}
           />
 
@@ -191,6 +224,7 @@ function SignupRoleForm({ roleKey }) {
             type="password"
             placeholder="Min. 8 Character"
             value={formValues.password}
+            autoComplete="new-password"
             onChange={handleChange}
           />
 
@@ -200,6 +234,7 @@ function SignupRoleForm({ roleKey }) {
             type="password"
             placeholder="Min. 8 Character"
             value={formValues.confirmPassword}
+            autoComplete="new-password"
             onChange={handleChange}
           />
 

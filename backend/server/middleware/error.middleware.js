@@ -10,7 +10,9 @@ function formatZodIssues(error) {
   }))
 }
 
-export function errorHandler(error, req, res) {
+export function errorHandler(error, req, res, next) {
+  void next
+
   if (error instanceof ApiError) {
     res.status(error.statusCode).json({
       success: false,
@@ -21,10 +23,12 @@ export function errorHandler(error, req, res) {
   }
 
   if (error instanceof ZodError) {
+    const issues = formatZodIssues(error)
+
     res.status(400).json({
       success: false,
-      message: 'Validation failed.',
-      errors: formatZodIssues(error),
+      message: issues[0]?.message ?? 'Validation failed.',
+      errors: issues,
     })
     return
   }

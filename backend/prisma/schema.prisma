@@ -18,6 +18,8 @@ model User {
   name         String
   email        String     @unique
   passwordHash String
+  passwordResetTokenHash String?
+  passwordResetExpiresAt DateTime?
   role         Role       @default(tenant)
   properties   Property[] @relation("PropertyOwner")
   blogPosts    Blog[]     @relation("BlogAuthor")
@@ -25,6 +27,7 @@ model User {
   updatedAt    DateTime   @updatedAt
 
   @@index([role])
+  @@index([passwordResetTokenHash])
 }
 
 model Property {

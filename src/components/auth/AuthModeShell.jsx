@@ -20,6 +20,8 @@ export default function AuthModeShell({
   submitDisabled,
   submitLabel,
 }) {
+  const hasGoogleAction = Boolean(onGoogleAction && googleLabel);
+
   return (
     <div className="grid min-h-screen bg-[linear-gradient(180deg,#F6F8FF_0%,#FFFFFF_58%)] lg:grid-cols-[minmax(22rem,0.42fr)_minmax(0,0.58fr)]">
       <section className="relative flex flex-col overflow-hidden px-5 py-6 sm:px-8 lg:px-14 lg:py-10">
@@ -58,23 +60,27 @@ export default function AuthModeShell({
                 </p>
               ) : null}
 
-              <button
-                type="button"
-                onClick={onGoogleAction}
-                disabled={googleDisabled}
-                className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-[#D7E2F4] bg-[#F8FAFF] px-5 text-sm font-medium text-[#18399F] shadow-[0_12px_24px_rgba(24,57,159,0.05)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#BFD2FF] hover:bg-white hover:shadow-[0_18px_32px_rgba(24,57,159,0.1)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-65 disabled:hover:border-[#D7E2F4] disabled:hover:bg-[#F8FAFF] disabled:hover:shadow-[0_12px_24px_rgba(24,57,159,0.05)]"
-              >
-                <span className="grid size-8 place-items-center rounded-full bg-white shadow-[0_10px_22px_rgba(24,57,159,0.08)]">
-                  <AuthGoogleMark className="size-[1.125rem]" />
-                </span>
-                <span>{isGoogleLoading ? 'Connecting to Google...' : googleLabel}</span>
-              </button>
+              {hasGoogleAction ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={onGoogleAction}
+                    disabled={googleDisabled}
+                    className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-[#D7E2F4] bg-[#F8FAFF] px-5 text-sm font-medium text-[#18399F] shadow-[0_12px_24px_rgba(24,57,159,0.05)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#BFD2FF] hover:bg-white hover:shadow-[0_18px_32px_rgba(24,57,159,0.1)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-65 disabled:hover:border-[#D7E2F4] disabled:hover:bg-[#F8FAFF] disabled:hover:shadow-[0_12px_24px_rgba(24,57,159,0.05)]"
+                  >
+                    <span className="grid size-8 place-items-center rounded-full bg-white shadow-[0_10px_22px_rgba(24,57,159,0.08)]">
+                      <AuthGoogleMark className="size-[1.125rem]" />
+                    </span>
+                    <span>{isGoogleLoading ? 'Connecting to Google...' : googleLabel}</span>
+                  </button>
 
-              <div className="flex items-center gap-3 text-[0.72rem] font-medium text-slate-400">
-                <span className="h-px flex-1 bg-[#D6DCEB]" />
-                <span>{`or ${modeLabel} with Email`}</span>
-                <span className="h-px flex-1 bg-[#D6DCEB]" />
-              </div>
+                  <div className="flex items-center gap-3 text-[0.72rem] font-medium text-slate-400">
+                    <span className="h-px flex-1 bg-[#D6DCEB]" />
+                    <span>{`or ${modeLabel} with Email`}</span>
+                    <span className="h-px flex-1 bg-[#D6DCEB]" />
+                  </div>
+                </>
+              ) : null}
             </div>
 
             <div className="mt-7 rounded-[1.6rem] bg-[linear-gradient(135deg,#173B9F_0%,#214CB7_100%)] px-5 py-4 text-white shadow-[0_22px_44px_rgba(24,57,159,0.22)] lg:hidden">

@@ -12,6 +12,11 @@ const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL).r
   ''
 )
 const AuthContext = createContext(null)
+const LOGIN_FIELD_MESSAGES = new Set([
+  'Please fill in all required fields',
+  'Please enter your email',
+  'Please enter your password',
+])
 
 function readStoredSession() {
   if (typeof window === 'undefined') {
@@ -47,15 +52,46 @@ async function requestAuth(path, { body, method = 'GET', token } = {}) {
     body: body ? JSON.stringify(body) : undefined,
   })
 
-  const payload = await response.json().catch(() => null)
+  const responseText = await response.text()
+  let payload = null
+
+  if (responseText) {
+    try {
+      payload = JSON.parse(responseText)
+    } catch {
+      payload = null
+    }
+  }
 
   if (!response.ok || !payload?.success) {
-    const error = new Error(payload?.message ?? 'Authentication request failed.')
-    error.details = payload?.errors ?? []
+    const details = payload?.errors ?? []
+    const message =
+      details.find((detail) => detail?.message)?.message ??
+      payload?.message ??
+      'Something went wrong. Please try again.'
+    const error = new Error(message)
+    error.details = details
+    error.status = response.status
     throw error
   }
 
   return payload.data
+}
+
+function normalizeLoginError(error) {
+  const message =
+    typeof error?.message === 'string' && error.message.trim()
+      ? error.message.trim()
+      : ''
+
+  if (LOGIN_FIELD_MESSAGES.has(message)) {
+    return error
+  }
+
+  const normalizedError = new Error('Invalid email or password')
+  normalizedError.details = []
+  normalizedError.status = error?.status ?? 401
+  return normalizedError
 }
 
 export function AuthProvider({ children }) {
@@ -90,20 +126,26 @@ export function AuthProvider({ children }) {
   }
 
   const login = async ({ email, password }) => {
-    const authData = await requestAuth('/auth/login', {
-      method: 'POST',
-      body: {
-        email,
-        password,
-      },
-    })
+    let authData
+
+    try {
+      authData = await requestAuth('/api/auth/login', {
+        method: 'POST',
+        body: {
+          email,
+          password,
+        },
+      })
+    } catch (error) {
+      throw normalizeLoginError(error)
+    }
 
     showSuccessToast('Logged in successfully.')
     return setAuthenticatedSession(authData)
   }
 
   const register = async ({ name, email, password, confirmPassword, role }) => {
-    const authData = await requestAuth('/auth/signup', {
+    const authData = await requestAuth('/api/auth/signup', {
       method: 'POST',
       body: {
         name,
@@ -119,7 +161,7 @@ export function AuthProvider({ children }) {
   }
 
   const loginWithGoogle = async ({ idToken, role }) => {
-    const authData = await requestAuth('/auth/google', {
+    const authData = await requestAuth('/api/auth/google', {
       method: 'POST',
       body: {
         idToken,
@@ -129,6 +171,37 @@ export function AuthProvider({ children }) {
 
     showSuccessToast('Google sign-in completed successfully.')
     return setAuthenticatedSession(authData)
+  }
+
+  const requestPasswordReset = async (email) => {
+    const resetData = await requestAuth('/api/auth/forgot-password', {
+      method: 'POST',
+      body: {
+        email,
+      },
+    })
+
+    if (resetData?.resetUrl) {
+      showInfoToast('Reset link created. Choose a new password to finish.')
+      return resetData
+    }
+
+    showInfoToast('If an account exists, reset instructions are ready.')
+    return resetData
+  }
+
+  const resetPassword = async ({ token, password, confirmPassword }) => {
+    const responseData = await requestAuth('/api/auth/reset-password', {
+      method: 'POST',
+      body: {
+        token,
+        password,
+        confirmPassword,
+      },
+    })
+
+    showSuccessToast('Password reset successfully.')
+    return responseData
   }
 
   const logout = () => {
@@ -160,7 +233,7 @@ export function AuthProvider({ children }) {
       return null
     }
 
-    const currentUser = await requestAuth('/auth/me', {
+    const currentUser = await requestAuth('/api/auth/me', {
       token,
     })
 
@@ -188,6 +261,8 @@ export function AuthProvider({ children }) {
         login,
         register,
         loginWithGoogle,
+        requestPasswordReset,
+        resetPassword,
         logout,
         updateUser,
         refreshUser,

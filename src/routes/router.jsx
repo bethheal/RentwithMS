@@ -10,6 +10,7 @@ import MainLayout from '../layouts/MainLayout.jsx'
 const HomePage = lazy(() => import('../pages/home/HomePage.jsx'))
 const BlogPage = lazy(() => import('../pages/blog/BlogPage.jsx'))
 const LoginPage = lazy(() => import('../pages/auth/LoginPage.jsx'))
+const ResetPasswordPage = lazy(() => import('../pages/auth/ResetPasswordPage.jsx'))
 const SignupPage = lazy(() => import('../pages/auth/SignupPage.jsx'))
 const DashboardPage = lazy(() => import('../pages/dashboard/DashboardPage.jsx'))
 const NotFoundPage = lazy(() => import('../pages/not-found/NotFoundPage.jsx'))
@@ -44,6 +45,12 @@ export const router = createBrowserRouter([
         path: '/signup',
         element: (
           <GuestOnlyRoute>{renderLazyPage(SignupPage)}</GuestOnlyRoute>
+        ),
+      },
+      {
+        path: '/reset-password',
+        element: (
+          <GuestOnlyRoute>{renderLazyPage(ResetPasswordPage)}</GuestOnlyRoute>
         ),
       },
     ],

@@ -1,5 +1,5 @@
 import { OAuth2Client } from 'google-auth-library'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import prisma from '../config/prisma.js'
 import env from '../config/env.js'
 import { ROLES } from '../constants/roles.js'
@@ -8,6 +8,7 @@ import { signToken } from '../utils/jwt.js'
 import { comparePassword, hashPassword } from '../utils/password.js'
 
 const googleClient = env.GOOGLE_CLIENT_ID ? new OAuth2Client(env.GOOGLE_CLIENT_ID) : null
+const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000
 
 function buildAuthResult(user) {
   return {
@@ -21,6 +22,16 @@ function buildAuthResult(user) {
 
 function normalizeEmail(email) {
   return email.trim().toLowerCase()
+}
+
+function hashResetToken(resetToken) {
+  return createHash('sha256').update(resetToken).digest('hex')
+}
+
+function buildPasswordResetUrl(resetToken) {
+  return `${env.CLIENT_ORIGIN.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(
+    resetToken
+  )}`
 }
 
 function assertPublicRole(role) {
@@ -41,7 +52,7 @@ async function verifyGoogleProfile(idToken) {
       idToken,
       audience: env.GOOGLE_CLIENT_ID,
     })
-  } catch (error) {
+  } catch {
     throw new ApiError(401, 'Google authentication failed.')
   }
 
@@ -73,13 +84,13 @@ export async function loginUser(credentials) {
   })
 
   if (!user) {
-    throw new ApiError(401, 'Invalid email or password.')
+    throw new ApiError(401, 'Invalid email or password')
   }
 
   const isPasswordValid = await comparePassword(credentials.password, user.passwordHash)
 
   if (!isPasswordValid) {
-    throw new ApiError(401, 'Invalid email or password.')
+    throw new ApiError(401, 'Invalid email or password')
   }
 
   return buildAuthResult(user)
@@ -142,6 +153,64 @@ export async function authenticateWithGoogle(payload) {
     ...buildAuthResult(user),
     isNewUser: true,
   }
+}
+
+export async function requestPasswordReset(emailAddress) {
+  const email = normalizeEmail(emailAddress)
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, email: true },
+  })
+
+  if (!user) {
+    throw new ApiError(404, 'No account was found with that email address.')
+  }
+
+  const resetToken = randomBytes(32).toString('hex')
+  const passwordResetTokenHash = hashResetToken(resetToken)
+  const passwordResetExpiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS)
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordResetTokenHash,
+      passwordResetExpiresAt,
+    },
+  })
+
+  return {
+    email: user.email,
+    expiresAt: passwordResetExpiresAt,
+    resetToken,
+    resetUrl: buildPasswordResetUrl(resetToken),
+  }
+}
+
+export async function resetUserPassword(payload) {
+  const passwordResetTokenHash = hashResetToken(payload.token)
+  const user = await prisma.user.findFirst({
+    where: {
+      passwordResetTokenHash,
+      passwordResetExpiresAt: {
+        gt: new Date(),
+      },
+    },
+  })
+
+  if (!user) {
+    throw new ApiError(400, 'This password reset link is invalid or has expired.')
+  }
+
+  const passwordHash = await hashPassword(payload.password)
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash,
+      passwordResetExpiresAt: null,
+      passwordResetTokenHash: null,
+    },
+  })
 }
 
 export async function getAuthenticatedUser(userId) {

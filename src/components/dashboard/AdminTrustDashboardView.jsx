@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { landlordTrustResponse } from "../../data/mockApi/landlordTrust.js";
 import { tenantDashboardResponse } from "../../data/mockApi/tenantDashboard.js";
-import { classNames } from "../../utils/classNames.js";
 import { getRatingSummary, formatTrustDate } from "../../utils/landlordTrust.js";
 import { showSuccessToast } from "../../utils/toast.js";
 import {
