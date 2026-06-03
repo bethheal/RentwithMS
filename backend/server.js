@@ -1,10 +1,12 @@
 import env from './server/config/env.js'
 import prisma, { checkDatabaseConnection } from './server/config/prisma.js'
 import { createApp } from './server/app.js'
+import { cleanupExpiredInactiveAccounts } from './server/services/auth.service.js'
 
 const host = '0.0.0.0'
 const app = createApp()
 let server
+let cleanupInterval
 
 let isShuttingDown = false
 
@@ -26,6 +28,9 @@ function shutdown(signal) {
   console.log(`${signal} received. Shutting down gracefully...`)
 
   if (!server) {
+    if (cleanupInterval) {
+      clearInterval(cleanupInterval)
+    }
     disconnectPrisma().finally(() => {
       process.exit(0)
     })
@@ -33,6 +38,9 @@ function shutdown(signal) {
   }
 
   server.close(async (error) => {
+    if (cleanupInterval) {
+      clearInterval(cleanupInterval)
+    }
     if (error) {
       console.error('Failed to close the HTTP server cleanly.')
       console.error(error)
@@ -50,11 +58,18 @@ async function startServer() {
   try {
     await prisma.$connect()
     await checkDatabaseConnection()
-    console.log('Database connection established successfully.')
 
-    server = app.listen(env.PORT, host, () => {
-      console.log(`RMS server listening on http://${host}:${env.PORT}`)
+    server = app.listen(env.PORT, host)
+    cleanupExpiredInactiveAccounts().catch((error) => {
+      console.error('Expired account cleanup failed.')
+      console.error(error)
     })
+    cleanupInterval = setInterval(() => {
+      cleanupExpiredInactiveAccounts().catch((error) => {
+        console.error('Expired account cleanup failed.')
+        console.error(error)
+      })
+    }, 60 * 60 * 1000)
   } catch (error) {
     console.error('Failed to connect to the database. Server was not started.')
     console.error(error)

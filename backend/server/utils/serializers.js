@@ -7,7 +7,13 @@ export function serializeUser(user) {
     id: user.id,
     name: user.name,
     email: user.email,
+    phoneNumber: user.phoneNumber,
     role: user.role,
+    emailVerified: user.emailVerified,
+    phoneVerified: user.phoneVerified,
+    accountStatus: user.accountStatus,
+    deactivatedAt: user.deactivatedAt,
+    scheduledDeletionDate: user.scheduledDeletionDate,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   }

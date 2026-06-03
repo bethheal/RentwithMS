@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 const publicSignupRoleSchema = z.enum(['landlord', 'tenant'])
+const verificationMethodSchema = z.enum(['email', 'phone'])
 const passwordStrengthSchema = z
   .string()
   .min(8, 'Password must be at least 8 characters long.')
@@ -50,11 +51,12 @@ export function validateLoginInput(data) {
 export function validateSignupInput(data) {
   const name = normalizeString(data.name)
   const email = normalizeString(data.email)
+  const phoneNumber = normalizeString(data.phoneNumber)
   const password = normalizeString(data.password)
   const confirmPassword = normalizeString(data.confirmPassword)
   const issues = []
 
-  if (!name || !email || !password || !confirmPassword) {
+  if (!name || !email || !phoneNumber || !password || !confirmPassword) {
     return [{ field: 'form', message: 'Please fill in all required fields' }]
   }
 
@@ -76,6 +78,13 @@ export function validateSignupInput(data) {
     issues.push({
       field: 'email',
       message: 'Please provide a valid email address.',
+    })
+  }
+
+  if (!/^\+?[1-9]\d{7,14}$/.test(phoneNumber.replace(/[\s().-]/g, ''))) {
+    issues.push({
+      field: 'phoneNumber',
+      message: 'Please provide a valid phone number.',
     })
   }
 
@@ -114,14 +123,48 @@ export const signupSchema = {
     .object({
       name: z.string().optional(),
       email: z.string().optional(),
+      phoneNumber: z.string().optional(),
       password: z.string().optional(),
       confirmPassword: z.string().optional(),
       role: publicSignupRoleSchema,
+      verificationMethod: verificationMethodSchema,
     })
     .strict()
     .superRefine((data, context) => {
       addValidationIssues(context, validateSignupInput(data))
     }),
+}
+
+export const verifySignupSchema = {
+  body: z
+    .object({
+      userId: z.string().uuid('Verification request is invalid.'),
+      code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit verification code.').optional(),
+      token: z.string().trim().min(20, 'Verification token is invalid.').optional(),
+    })
+    .strict()
+    .superRefine((data, context) => {
+      if (!data.code && !data.token) {
+        addRequiredFieldIssue(context, 'code', 'Enter the verification code.')
+      }
+    }),
+}
+
+export const resendVerificationSchema = {
+  body: z
+    .object({
+      userId: z.string().uuid('Verification request is invalid.'),
+      verificationMethod: verificationMethodSchema,
+    })
+    .strict(),
+}
+
+export const accountPasswordConfirmationSchema = {
+  body: z
+    .object({
+      password: z.string().trim().min(1, 'Password confirmation is required.'),
+    })
+    .strict(),
 }
 
 export const forgotPasswordSchema = {

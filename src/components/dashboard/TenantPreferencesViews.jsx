@@ -9,10 +9,13 @@ import {
   MessageSquareText,
   Phone,
   Search,
+  ShieldAlert,
   ShieldCheck,
+  Trash2,
   UserCircle2,
 } from "lucide-react";
 import FaqAccordionItem from "../cards/FaqAccordionItem.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { classNames } from "../../utils/classNames.js";
 import { showErrorToast } from "../../utils/toast.js";
 
@@ -110,6 +113,157 @@ function ContactCard({ action, description, icon, title }) {
       <p className="mt-2 text-sm leading-7 text-slate-500">{description}</p>
       <div className="mt-5">{action}</div>
     </article>
+  );
+}
+
+function AccountManagementActions() {
+  const { deactivateAccount, deleteAccount } = useAuth();
+  const [modalMode, setModalMode] = useState(null);
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isDeactivate = modalMode === "deactivate";
+
+  const closeModal = () => {
+    if (isSubmitting) {
+      return;
+    }
+
+    setModalMode(null);
+    setPassword("");
+    setErrorMessage("");
+  };
+
+  const handleConfirm = async () => {
+    if (!password.trim()) {
+      setErrorMessage("Password confirmation is required.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setErrorMessage("");
+
+      if (isDeactivate) {
+        await deactivateAccount({ password });
+      } else {
+        await deleteAccount({ password });
+      }
+    } catch (error) {
+      const nextMessage = error.message || "Account action failed.";
+      setErrorMessage(nextMessage);
+      showErrorToast(error, "Account action failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <article className="rounded-[2rem] border border-rose-200 bg-white p-5 shadow-[0_20px_40px_rgba(15,32,86,0.08)] sm:p-6">
+        <div className="flex items-start gap-3">
+          <span className="grid size-11 shrink-0 place-items-center rounded-[1rem] bg-rose-50 text-rose-600">
+            <ShieldAlert className="size-5" />
+          </span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-500">
+              Account Management
+            </p>
+            <h3 className="mt-1 text-xl font-semibold text-[#102A74]">
+              Deactivate or delete your account
+            </h3>
+            <p className="mt-2 text-sm leading-7 text-slate-500">
+              Deactivation hides your tenant profile for 30 days. Logging in during
+              that period restores access automatically.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => setModalMode("deactivate")}
+            className="inline-flex items-center gap-2 rounded-full border border-[#C9D4EC] px-4 py-2.5 text-sm font-semibold text-[#18399F] transition-colors duration-300 hover:border-[#18399F]"
+          >
+            <ShieldAlert className="size-4" />
+            Deactivate Account
+          </button>
+          <button
+            type="button"
+            onClick={() => setModalMode("delete")}
+            className="inline-flex items-center gap-2 rounded-full bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-300 hover:bg-rose-700"
+          >
+            <Trash2 className="size-4" />
+            Delete Account
+          </button>
+        </div>
+      </article>
+
+      {modalMode ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+          <button
+            type="button"
+            onClick={closeModal}
+            className="absolute inset-0 bg-[#07163F]/45"
+            aria-label="Close account action confirmation"
+          />
+
+          <div className="relative z-10 w-full max-w-lg rounded-[1.8rem] border border-[#DCE5F7] bg-white p-6 shadow-[0_22px_44px_rgba(13,29,76,0.2)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-rose-500">
+              Confirm Account Action
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-[#102A74]">
+              {isDeactivate ? "Deactivate account for 30 days" : "Delete account access"}
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-slate-500">
+              {isDeactivate
+                ? "Your profile and activity will be hidden. You can return within 30 days to reactivate automatically. After 30 days, account access is permanently removed while required records may be retained."
+                : "This permanently removes account access. Important history may remain in system records where required."}
+            </p>
+
+            <label className="mt-5 block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#5C7BD9]">
+                Confirm Password
+              </span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setErrorMessage("");
+                }}
+                className="h-12 w-full rounded-[1rem] border border-[#DCE5F7] px-4 text-sm text-slate-700 outline-none transition focus:border-[#18399F]"
+              />
+            </label>
+
+            {errorMessage ? (
+              <p className="mt-4 rounded-[1rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {errorMessage}
+              </p>
+            ) : null}
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeModal}
+                disabled={isSubmitting}
+                className="rounded-full border border-[#C9D4EC] px-4 py-2 text-sm font-semibold text-[#18399F] disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={isSubmitting}
+                className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition-colors duration-300 hover:bg-rose-700 disabled:opacity-50"
+              >
+                {isSubmitting ? "Processing..." : isDeactivate ? "Deactivate Account" : "Delete Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -489,6 +643,8 @@ export function TenantSettingsView({ onSaveSettings, settings }) {
           </div>
         </div>
       </article>
+
+      <AccountManagementActions />
 
       <div className="flex justify-end">
         <button

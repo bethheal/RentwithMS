@@ -29,7 +29,13 @@ export const authenticate = asyncHandler(async (req, res, next) => {
       id: true,
       name: true,
       email: true,
+      phoneNumber: true,
       role: true,
+      emailVerified: true,
+      phoneVerified: true,
+      accountStatus: true,
+      deactivatedAt: true,
+      scheduledDeletionDate: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -37,6 +43,10 @@ export const authenticate = asyncHandler(async (req, res, next) => {
 
   if (!user) {
     throw new ApiError(401, 'The user linked to this token no longer exists.')
+  }
+
+  if (user.accountStatus === 'deleted') {
+    throw new ApiError(401, 'This account is no longer available.')
   }
 
   req.user = user

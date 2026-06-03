@@ -154,17 +154,19 @@ export default function AuthModeShell({
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              form={formId}
-              disabled={submitDisabled}
-              className="inline-flex items-center gap-3 rounded-full bg-white px-10 py-4 text-sm font-extrabold uppercase tracking-[0.24em] text-[#18399F] shadow-[0_20px_34px_rgba(10,24,76,0.26)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#EEF4FF] disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-white/75 disabled:text-[#5B70B2] disabled:shadow-none"
-            >
-              <span>{submitLabel}</span>
-              <ArrowRight className="size-4" />
-            </button>
-          </div>
+          {formId && submitLabel ? (
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                form={formId}
+                disabled={submitDisabled}
+                className="inline-flex items-center gap-3 rounded-full bg-white px-10 py-4 text-sm font-extrabold uppercase tracking-[0.24em] text-[#18399F] shadow-[0_20px_34px_rgba(10,24,76,0.26)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#EEF4FF] disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-white/75 disabled:text-[#5B70B2] disabled:shadow-none"
+              >
+                <span>{submitLabel}</span>
+                <ArrowRight className="size-4" />
+              </button>
+            </div>
+          ) : null}
         </div>
       </section>
     </div>

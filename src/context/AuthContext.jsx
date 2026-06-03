@@ -144,20 +144,84 @@ export function AuthProvider({ children }) {
     return setAuthenticatedSession(authData)
   }
 
-  const register = async ({ name, email, password, confirmPassword, role }) => {
-    const authData = await requestAuth('/api/auth/signup', {
+  const register = async ({
+    name,
+    email,
+    phoneNumber,
+    password,
+    confirmPassword,
+    role,
+    verificationMethod,
+  }) => {
+    const verificationData = await requestAuth('/api/auth/signup', {
       method: 'POST',
       body: {
         name,
         email,
+        phoneNumber,
         password,
         confirmPassword,
         role,
+        verificationMethod,
       },
     })
 
-    showSuccessToast('Account created successfully.')
-    return setAuthenticatedSession(authData)
+    showSuccessToast('Verification code sent.')
+    return verificationData
+  }
+
+  const verifySignup = async ({ userId, code, token: verificationToken }) => {
+    const verifiedUser = await requestAuth('/api/auth/signup/verify', {
+      method: 'POST',
+      body: {
+        userId,
+        ...(verificationToken ? { token: verificationToken } : { code }),
+      },
+    })
+
+    showSuccessToast('Account verified successfully. Please log in.')
+    return verifiedUser
+  }
+
+  const resendSignupVerification = async ({ userId, verificationMethod }) => {
+    const verificationData = await requestAuth('/api/auth/signup/resend', {
+      method: 'POST',
+      body: {
+        userId,
+        verificationMethod,
+      },
+    })
+
+    showInfoToast('Verification code resent.')
+    return verificationData
+  }
+
+  const deactivateAccount = async ({ password }) => {
+    const updatedUser = await requestAuth('/api/auth/account/deactivate', {
+      method: 'POST',
+      token,
+      body: {
+        password,
+      },
+    })
+
+    showInfoToast('Account deactivated. You can restore it by logging in within 30 days.')
+    setSession(null)
+    return updatedUser
+  }
+
+  const deleteAccount = async ({ password }) => {
+    const updatedUser = await requestAuth('/api/auth/account/delete', {
+      method: 'POST',
+      token,
+      body: {
+        password,
+      },
+    })
+
+    showSuccessToast('Account access permanently removed.')
+    setSession(null)
+    return updatedUser
   }
 
   const loginWithGoogle = async ({ idToken, role }) => {
@@ -260,7 +324,11 @@ export function AuthProvider({ children }) {
         isAuthenticated: Boolean(user && token),
         login,
         register,
+        verifySignup,
+        resendSignupVerification,
         loginWithGoogle,
+        deactivateAccount,
+        deleteAccount,
         requestPasswordReset,
         resetPassword,
         logout,

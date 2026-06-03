@@ -2,11 +2,15 @@ import asyncHandler from '../utils/asyncHandler.js'
 import { serializeUser } from '../utils/serializers.js'
 import {
   authenticateWithGoogle,
+  deactivateAuthenticatedAccount,
+  deleteAuthenticatedAccount,
   getAuthenticatedUser,
   loginUser,
   requestPasswordReset,
   resetUserPassword,
+  resendSignupVerification,
   signupUser,
+  verifySignup,
 } from '../services/auth.service.js'
 
 export const login = asyncHandler(async (req, res) => {
@@ -23,15 +27,32 @@ export const login = asyncHandler(async (req, res) => {
 })
 
 export const signup = asyncHandler(async (req, res) => {
-  const { token, user } = await signupUser(req.body)
+  const verification = await signupUser(req.body)
 
   res.status(201).json({
     success: true,
-    message: 'Account created successfully.',
-    data: {
-      token,
-      user: serializeUser(user),
-    },
+    message: 'Verification code sent. Complete verification to activate your account.',
+    data: verification,
+  })
+})
+
+export const verifySignupAccount = asyncHandler(async (req, res) => {
+  const user = await verifySignup(req.body)
+
+  res.status(200).json({
+    success: true,
+    message: 'Account verified successfully. Please log in to continue.',
+    data: serializeUser(user),
+  })
+})
+
+export const resendSignupCode = asyncHandler(async (req, res) => {
+  const verification = await resendSignupVerification(req.body)
+
+  res.status(200).json({
+    success: true,
+    message: 'Verification code resent.',
+    data: verification,
   })
 })
 
@@ -76,6 +97,26 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
+    data: serializeUser(user),
+  })
+})
+
+export const deactivateAccount = asyncHandler(async (req, res) => {
+  const user = await deactivateAuthenticatedAccount(req.user.id, req.body.password)
+
+  res.status(200).json({
+    success: true,
+    message: 'Account deactivated. You can restore it by logging in within 30 days.',
+    data: serializeUser(user),
+  })
+})
+
+export const deleteAccount = asyncHandler(async (req, res) => {
+  const user = await deleteAuthenticatedAccount(req.user.id, req.body.password)
+
+  res.status(200).json({
+    success: true,
+    message: 'Account access permanently removed.',
     data: serializeUser(user),
   })
 })
