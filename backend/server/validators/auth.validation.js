@@ -81,7 +81,7 @@ export function validateSignupInput(data) {
     })
   }
 
-  if (!/^\+?[1-9]\d{7,14}$/.test(phoneNumber.replace(/[\s().-]/g, ''))) {
+  if (!/^(\+?233|0)\d{9}$/.test(phoneNumber.replace(/[\s().-]/g, ''))) {
     issues.push({
       field: 'phoneNumber',
       message: 'Please provide a valid phone number.',

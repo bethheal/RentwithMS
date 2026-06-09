@@ -53,7 +53,7 @@ function getSignupValidationMessage({
   }
 
   const normalizedPhoneDigits = normalizedPhone.replace(/[\s().-]/g, '')
-  const phonePattern = /^\+?[1-9]\d{7,14}$/
+  const phonePattern = /^(\+?233|0)\d{9}$/
   if (!phonePattern.test(normalizedPhoneDigits)) {
     return 'Please provide a valid phone number.'
   }

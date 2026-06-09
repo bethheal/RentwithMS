@@ -34,7 +34,11 @@ function normalizeEmail(email) {
 }
 
 function normalizePhoneNumber(phoneNumber) {
-  return String(phoneNumber ?? '').replace(/[^\d+]/g, '')
+  const cleaned = String(phoneNumber ?? '').replace(/[^\d+]/g, '')
+  if (/^0\d{9}$/.test(cleaned)) {
+    return '233' + cleaned.slice(1)
+  }
+  return cleaned
 }
 
 function hashResetToken(resetToken) {
