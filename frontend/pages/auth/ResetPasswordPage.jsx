@@ -1,212 +1,223 @@
-import { useEffect, useState } from 'react'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import AuthFormField from '../../components/auth/AuthFormField.jsx'
-import AuthModeShell from '../../components/auth/AuthModeShell.jsx'
-import { useAuth } from '../../context/AuthContext.jsx'
-import { showErrorToast } from '../../utils/toast.js'
+import { useEffect, useState } from "react";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
+import AuthFormField from "../../components/auth/AuthFormField.jsx";
+import AuthModeShell from "../../components/auth/AuthModeShell.jsx";
+import { ROUTES } from "../../routes/routePaths.js";
+import { useAuth } from "../../context/AuthContext.jsx";
+import { showErrorToast } from "../../utils/toast.js";
 
 const requestInitialState = {
-  email: '',
-}
+  email: "",
+};
 
 const resetInitialState = {
-  password: '',
-  confirmPassword: '',
-}
+  password: "",
+  confirmPassword: "",
+};
 
 function getForgotPasswordValidationMessage(email) {
-  const normalizedEmail = email.trim()
+  const normalizedEmail = email.trim();
 
   if (!normalizedEmail) {
-    return 'Please enter your email'
+    return "Please enter your email";
   }
 
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailPattern.test(normalizedEmail)) {
-    return 'Please provide a valid email address.'
+    return "Please provide a valid email address.";
   }
 
-  return ''
+  return "";
 }
 
 function getResetPasswordValidationMessage({ password, confirmPassword }) {
-  const normalizedPassword = password.trim()
-  const normalizedConfirmPassword = confirmPassword.trim()
+  const normalizedPassword = password.trim();
+  const normalizedConfirmPassword = confirmPassword.trim();
 
   if (!normalizedPassword || !normalizedConfirmPassword) {
-    return 'Please fill in all required fields'
+    return "Please fill in all required fields";
   }
 
   if (normalizedPassword.length < 8) {
-    return 'Password must be at least 8 characters long.'
+    return "Password must be at least 8 characters long.";
   }
 
   if (!/[A-Za-z]/.test(normalizedPassword) || !/\d/.test(normalizedPassword)) {
-    return 'Password must include at least one letter and one number.'
+    return "Password must include at least one letter and one number.";
   }
 
   if (normalizedPassword !== normalizedConfirmPassword) {
-    return 'Passwords do not match.'
+    return "Passwords do not match.";
   }
 
-  return ''
+  return "";
 }
 
 export default function ResetPasswordPage() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [searchParams] = useSearchParams()
-  const { requestPasswordReset, resetPassword } = useAuth()
-  const token = searchParams.get('token')?.trim() ?? ''
-  const emailQuery = searchParams.get('email')?.trim() ?? ''
-  const isResetMode = Boolean(token)
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { requestPasswordReset, resetPassword } = useAuth();
+  const token = searchParams.get("token")?.trim() ?? "";
+  const emailQuery = searchParams.get("email")?.trim() ?? "";
+  const isResetMode = Boolean(token);
   const [requestValues, setRequestValues] = useState(() => ({
     ...requestInitialState,
     email: emailQuery,
-  }))
-  const [resetValues, setResetValues] = useState(resetInitialState)
-  const [formError, setFormError] = useState('')
+  }));
+  const [resetValues, setResetValues] = useState(resetInitialState);
+  const [formError, setFormError] = useState("");
   const [statusMessage, setStatusMessage] = useState(
-    () => location.state?.statusMessage ?? ''
-  )
-  const [isSubmitting, setIsSubmitting] = useState(false)
+    () => location.state?.statusMessage ?? "",
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isResetMode) {
-      return
+      return;
     }
 
     setRequestValues((current) => ({
       ...current,
       email: emailQuery,
-    }))
-  }, [emailQuery, isResetMode])
+    }));
+  }, [emailQuery, isResetMode]);
 
   useEffect(() => {
     if (!location.state?.statusMessage) {
-      return
+      return;
     }
 
-    setStatusMessage(location.state.statusMessage)
-  }, [location.state])
+    setStatusMessage(location.state.statusMessage);
+  }, [location.state]);
 
   const handleRequestChange = (event) => {
-    const { name, value } = event.target
+    const { name, value } = event.target;
     setRequestValues((current) => ({
       ...current,
       [name]: value,
-    }))
+    }));
 
     if (formError) {
-      setFormError('')
+      setFormError("");
     }
-  }
+  };
 
   const handleResetChange = (event) => {
-    const { name, value } = event.target
+    const { name, value } = event.target;
     setResetValues((current) => ({
       ...current,
       [name]: value,
-    }))
+    }));
 
     if (formError) {
-      setFormError('')
+      setFormError("");
     }
-  }
+  };
 
   const handleRequestSubmit = async (event) => {
-    event.preventDefault()
+    event.preventDefault();
 
-    const validationMessage = getForgotPasswordValidationMessage(requestValues.email)
+    const validationMessage = getForgotPasswordValidationMessage(
+      requestValues.email,
+    );
 
     if (validationMessage) {
-      setFormError(validationMessage)
-      showErrorToast(validationMessage)
-      return
+      setFormError(validationMessage);
+      showErrorToast(validationMessage);
+      return;
     }
 
     try {
-      setIsSubmitting(true)
-      setFormError('')
-      setStatusMessage('')
+      setIsSubmitting(true);
+      setFormError("");
+      setStatusMessage("");
 
-      const resetData = await requestPasswordReset(requestValues.email)
+      const resetData = await requestPasswordReset(requestValues.email);
 
       if (resetData?.resetToken) {
-        const nextSearchParams = new URLSearchParams()
-        nextSearchParams.set('token', resetData.resetToken)
+        const nextSearchParams = new URLSearchParams();
+        nextSearchParams.set("token", resetData.resetToken);
 
         if (requestValues.email.trim()) {
-          nextSearchParams.set('email', requestValues.email.trim())
+          nextSearchParams.set("email", requestValues.email.trim());
         }
 
         navigate(`/reset-password?${nextSearchParams.toString()}`, {
           replace: true,
           state: {
-            statusMessage: 'Reset link ready. Choose a new password below.',
+            statusMessage: "Reset link ready. Choose a new password below.",
           },
-        })
-        return
+        });
+        return;
       }
 
-      setStatusMessage('If an account exists for that email, reset instructions are ready.')
+      setStatusMessage(
+        "If an account exists for that email, reset instructions are ready.",
+      );
     } catch (error) {
-      const nextMessage = error.message || 'Password reset could not be started.'
-      setFormError(nextMessage)
-      showErrorToast(error, 'Password reset could not be started.')
+      const nextMessage =
+        error.message || "Password reset could not be started.";
+      setFormError(nextMessage);
+      showErrorToast(error, "Password reset could not be started.");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleResetSubmit = async (event) => {
-    event.preventDefault()
+    event.preventDefault();
 
-    const validationMessage = getResetPasswordValidationMessage(resetValues)
+    const validationMessage = getResetPasswordValidationMessage(resetValues);
 
     if (validationMessage) {
-      setFormError(validationMessage)
-      showErrorToast(validationMessage)
-      return
+      setFormError(validationMessage);
+      showErrorToast(validationMessage);
+      return;
     }
 
     try {
-      setIsSubmitting(true)
-      setFormError('')
+      setIsSubmitting(true);
+      setFormError("");
 
       await resetPassword({
         token,
         password: resetValues.password,
         confirmPassword: resetValues.confirmPassword,
-      })
+      });
 
-      navigate('/login', { replace: true })
+      navigate(ROUTES.LOGIN, { replace: true });
     } catch (error) {
-      const nextMessage = error.message || 'Password could not be reset.'
-      setFormError(nextMessage)
-      showErrorToast(error, 'Password could not be reset.')
+      const nextMessage = error.message || "Password could not be reset.";
+      setFormError(nextMessage);
+      showErrorToast(error, "Password could not be reset.");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
-  const modeLabel = isResetMode ? 'Reset Password' : 'Forgot Password'
-  const formId = isResetMode ? 'reset-password-form' : 'forgot-password-form'
+  const modeLabel = isResetMode ? "Reset Password" : "Forgot Password";
+  const formId = isResetMode ? "reset-password-form" : "forgot-password-form";
   const submitLabel = isSubmitting
     ? isResetMode
-      ? 'Saving...'
-      : 'Preparing...'
+      ? "Saving..."
+      : "Preparing..."
     : isResetMode
-      ? 'Save Password'
-      : 'Continue'
+      ? "Save Password"
+      : "Continue";
   const description = isResetMode
-    ? 'Create a new password for your account. Your reset link is valid for a short time only.'
-    : 'Enter your account email and we will prepare a secure password reset link for you right away.'
+    ? "Create a new password for your account. Your reset link is valid for a short time only."
+    : "Enter your account email and we will prepare a secure password reset link for you right away.";
 
   return (
     <AuthModeShell
       backAriaLabel="Back to login"
-      backTo="/login"
+      backTo={ROUTES.LOGIN}
       description={description}
       formId={formId}
       modeLabel={modeLabel}
@@ -216,9 +227,9 @@ export default function ResetPasswordPage() {
       submitLabel={submitLabel}
       footer={
         <p className="text-sm text-slate-500">
-          Remembered your password?{' '}
+          Remembered your password?{" "}
           <Link
-            to="/login"
+            to={ROUTES.LOGIN}
             className="font-semibold text-[#18399F] underline underline-offset-4"
           >
             Return to login
@@ -227,11 +238,7 @@ export default function ResetPasswordPage() {
       }
     >
       {isResetMode ? (
-        <form
-          id={formId}
-          onSubmit={handleResetSubmit}
-          className="space-y-5"
-        >
+        <form id={formId} onSubmit={handleResetSubmit} className="space-y-5">
           {statusMessage ? (
             <p
               aria-live="polite"
@@ -282,11 +289,7 @@ export default function ResetPasswordPage() {
           ) : null}
         </form>
       ) : (
-        <form
-          id={formId}
-          onSubmit={handleRequestSubmit}
-          className="space-y-5"
-        >
+        <form id={formId} onSubmit={handleRequestSubmit} className="space-y-5">
           {statusMessage ? (
             <p
               aria-live="polite"
@@ -317,5 +320,5 @@ export default function ResetPasswordPage() {
         </form>
       )}
     </AuthModeShell>
-  )
+  );
 }

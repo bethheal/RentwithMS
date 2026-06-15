@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom'
-import Container from '../../components/common/Container.jsx'
-import PrimaryButton from '../../components/common/PrimaryButton.jsx'
+import { Link } from "react-router-dom";
+import Container from "../../components/common/Container.jsx";
+import PrimaryButton from "../../components/common/PrimaryButton.jsx";
+import { ROUTES } from "../../routes/routePaths.js";
 
 export default function NotFoundPage() {
   return (
@@ -22,7 +23,7 @@ export default function NotFoundPage() {
               Back Home
             </PrimaryButton>
             <Link
-              to="/dashboard"
+              to={ROUTES.DASHBOARD}
               className="inline-flex items-center justify-center rounded-full border border-brand-200 px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-brand-900"
             >
               Open Dashboard
@@ -31,5 +32,5 @@ export default function NotFoundPage() {
         </div>
       </Container>
     </div>
-  )
+  );
 }

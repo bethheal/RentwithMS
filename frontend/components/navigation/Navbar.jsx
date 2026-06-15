@@ -1,25 +1,28 @@
-import { Menu } from 'lucide-react'
-import { Link, useLocation } from 'react-router-dom'
-import { useAppShell } from '../../context/AppShellContext.jsx'
-import { marketingNavigation } from '../../data/navigation.js'
-import BrandMark from '../common/BrandMark.jsx'
-import Container from '../common/Container.jsx'
-import PrimaryButton from '../common/PrimaryButton.jsx'
+import { Menu } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { useAppShell } from "../../context/AppShellContext.jsx";
+import { marketingNavigation } from "../../data/navigation.js";
+import BrandMark from "../common/BrandMark.jsx";
+import Container from "../common/Container.jsx";
+import PrimaryButton from "../common/PrimaryButton.jsx";
+import { ROUTES } from "../../routes/routePaths.js";
 
 function getIsActive(item, pathname, hash) {
   if (!item.to) {
-    return false
+    return false;
   }
 
-  const [itemPathname, itemHashValue] = item.to.split('#')
-  const normalizedPathname = itemPathname || '/'
-  const normalizedHash = itemHashValue ? `#${itemHashValue}` : ''
+  const [itemPathname, itemHashValue] = item.to.split("#");
+  const normalizedPathname = itemPathname || "/";
+  const normalizedHash = itemHashValue ? `#${itemHashValue}` : "";
 
   if (normalizedHash) {
-    return pathname === normalizedPathname && (hash || '#home') === normalizedHash
+    return (
+      pathname === normalizedPathname && (hash || "#home") === normalizedHash
+    );
   }
 
-  return pathname === normalizedPathname
+  return pathname === normalizedPathname;
 }
 
 function NavAnchor({ item, isActive, onClick }) {
@@ -28,23 +31,23 @@ function NavAnchor({ item, isActive, onClick }) {
       to={item.to}
       onClick={onClick}
       className={`relative inline-flex items-center self-stretch px-2 pt-3 pb-2 text-[0.76rem] font-semibold uppercase tracking-[0.14em] transition-colors duration-700 ${
-        isActive ? 'text-white' : 'text-white/85 hover:text-white'
+        isActive ? "text-white" : "text-white/85 hover:text-white"
       }`}
     >
       <span
         className={`absolute left-1/2 top-0 h-1.5 w-12 -translate-x-1/2 rounded-b-full bg-white transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          isActive ? 'scale-x-100 opacity-100' : 'scale-x-35 opacity-0'
+          isActive ? "scale-x-100 opacity-100" : "scale-x-35 opacity-0"
         }`}
         aria-hidden="true"
       />
       {item.label}
     </Link>
-  )
+  );
 }
 
 export default function Navbar() {
-  const { toggleSidebar } = useAppShell()
-  const location = useLocation()
+  const { toggleSidebar } = useAppShell();
+  const location = useLocation();
 
   return (
     <header className="sticky top-0 z-40 bg-transparent">
@@ -79,28 +82,28 @@ export default function Navbar() {
 
             <div className="flex items-center gap-4">
               <PrimaryButton
-                to="/login"
+                to={ROUTES.LOGIN}
                 size="md"
                 variant="light"
                 className="px-7 py-2 text-[0.72rem]"
               >
-              Login
+                Login
               </PrimaryButton>
 
               <PrimaryButton
-                to="/signup"
+                to={ROUTES.SIGNUP}
                 size="md"
                 variant="light"
                 className="px-7 py-2 text-[0.72rem]"
               >
-              Signup
+                Signup
               </PrimaryButton>
             </div>
           </div>
 
           <div className="flex items-center gap-3 lg:hidden">
             <Link
-              to="/login"
+              to={ROUTES.LOGIN}
               className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/10"
             >
               Login
@@ -117,5 +120,5 @@ export default function Navbar() {
         </div>
       </Container>
     </header>
-  )
+  );
 }

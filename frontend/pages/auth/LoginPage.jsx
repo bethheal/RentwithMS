@@ -1,138 +1,140 @@
-import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import AuthFormField from '../../components/auth/AuthFormField.jsx'
-import AuthModeShell from '../../components/auth/AuthModeShell.jsx'
-import AuthRoleSelectionStep from '../../components/auth/AuthRoleSelectionStep.jsx'
+import { useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import AuthFormField from "../../components/auth/AuthFormField.jsx";
+import AuthModeShell from "../../components/auth/AuthModeShell.jsx";
+import { ROUTES } from "../../routes/routePaths.js";
+import AuthRoleSelectionStep from "../../components/auth/AuthRoleSelectionStep.jsx";
 import {
   authRoleContent,
   normalizeAuthRole,
-} from '../../components/auth/authRoleConfig.js'
-import { useAuth } from '../../context/AuthContext.jsx'
-import { requestGoogleIdToken } from '../../utils/googleAuth.js'
-import { showErrorToast } from '../../utils/toast.js'
+} from "../../components/auth/authRoleConfig.js";
+import { useAuth } from "../../context/AuthContext.jsx";
+import { requestGoogleIdToken } from "../../utils/googleAuth.js";
+import { showErrorToast } from "../../utils/toast.js";
 
 const emptyState = {
-  email: '',
-  password: '',
-}
-const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
+  email: "",
+  password: "",
+};
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 
 function getLoginValidationMessage({ email, password }) {
-  const normalizedEmail = email.trim()
-  const normalizedPassword = password.trim()
+  const normalizedEmail = email.trim();
+  const normalizedPassword = password.trim();
 
   if (!normalizedEmail && !normalizedPassword) {
-    return 'Please fill in all required fields'
+    return "Please fill in all required fields";
   }
 
   if (!normalizedEmail) {
-    return 'Please enter your email'
+    return "Please enter your email";
   }
 
   if (!normalizedPassword) {
-    return 'Please enter your password'
+    return "Please enter your password";
   }
 
-  return ''
+  return "";
 }
 
 export default function LoginPage() {
-  const [searchParams] = useSearchParams()
-  const roleKey = normalizeAuthRole(searchParams.get('role'))
+  const [searchParams] = useSearchParams();
+  const roleKey = normalizeAuthRole(searchParams.get("role"));
 
   if (!roleKey) {
-    return <AuthRoleSelectionStep mode="login" />
+    return <AuthRoleSelectionStep mode="login" />;
   }
 
-  return <LoginRoleForm key={roleKey} roleKey={roleKey} />
+  return <LoginRoleForm key={roleKey} roleKey={roleKey} />;
 }
 
 function LoginRoleForm({ roleKey }) {
-  const navigate = useNavigate()
-  const { login, loginWithGoogle } = useAuth()
-  const roleConfig = authRoleContent[roleKey]
+  const navigate = useNavigate();
+  const { login, loginWithGoogle } = useAuth();
+  const roleConfig = authRoleContent[roleKey];
   const [formValues, setFormValues] = useState(() => ({
     ...emptyState,
-  }))
-  const [formError, setFormError] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  }));
+  const [formError, setFormError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleForgotPassword = () => {
-    const nextSearchParams = new URLSearchParams()
+    const nextSearchParams = new URLSearchParams();
 
     if (formValues.email.trim()) {
-      nextSearchParams.set('email', formValues.email.trim())
+      nextSearchParams.set("email", formValues.email.trim());
     }
 
     navigate(
-      `/reset-password${nextSearchParams.toString() ? `?${nextSearchParams.toString()}` : ''}`
-    )
-  }
+      `/reset-password${nextSearchParams.toString() ? `?${nextSearchParams.toString()}` : ""}`,
+    );
+  };
 
   const handleChange = (event) => {
-    const { name, value } = event.target
+    const { name, value } = event.target;
     setFormValues((current) => ({
       ...current,
       [name]: value,
-    }))
+    }));
 
     if (formError) {
-      setFormError('')
+      setFormError("");
     }
-  }
+  };
 
   const handleGoogleLogin = async () => {
     try {
-      setIsGoogleLoading(true)
-      setFormError('')
+      setIsGoogleLoading(true);
+      setFormError("");
 
-      const idToken = await requestGoogleIdToken(googleClientId)
+      const idToken = await requestGoogleIdToken(googleClientId);
       await loginWithGoogle({
         idToken,
         role: roleKey,
-      })
+      });
 
-      navigate('/dashboard')
+      navigate(ROUTES.DASHBOARD);
     } catch (error) {
-      const nextMessage = error.message || 'Google login could not be completed.'
-      setFormError(nextMessage)
-      showErrorToast(error, 'Google login could not be completed.')
+      const nextMessage =
+        error.message || "Google login could not be completed.";
+      setFormError(nextMessage);
+      showErrorToast(error, "Google login could not be completed.");
     } finally {
-      setIsGoogleLoading(false)
+      setIsGoogleLoading(false);
     }
-  }
+  };
 
   const handleSubmit = async (event) => {
-    event.preventDefault()
+    event.preventDefault();
 
-    const validationMessage = getLoginValidationMessage(formValues)
+    const validationMessage = getLoginValidationMessage(formValues);
 
     if (validationMessage) {
-      setFormError(validationMessage)
-      showErrorToast(validationMessage)
-      return
+      setFormError(validationMessage);
+      showErrorToast(validationMessage);
+      return;
     }
 
     try {
-      setIsSubmitting(true)
-      setFormError('')
+      setIsSubmitting(true);
+      setFormError("");
 
-      await login(formValues)
-      navigate('/dashboard')
+      await login(formValues);
+      navigate(ROUTES.DASHBOARD);
     } catch (error) {
-      const nextMessage = error.message || 'Login failed.'
-      setFormError(nextMessage)
-      showErrorToast(error, 'Login failed.')
+      const nextMessage = error.message || "Login failed.";
+      setFormError(nextMessage);
+      showErrorToast(error, "Login failed.");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <AuthModeShell
       backAriaLabel="Back to role selection"
-      backTo="/login"
+      backTo={ROUTES.LOGIN}
       description={`Secure access to your ${roleConfig.label.toLowerCase()} workspace. Continue with Google or use your email credentials below.`}
       formId="login-form"
       googleDisabled={isSubmitting || isGoogleLoading}
@@ -143,7 +145,7 @@ function LoginRoleForm({ roleKey }) {
       roleKey={roleKey}
       roleLabel={roleConfig.label}
       submitDisabled={isSubmitting || isGoogleLoading}
-      submitLabel={isSubmitting ? 'Logging In...' : 'Log In'}
+      submitLabel={isSubmitting ? "Logging In..." : "Log In"}
       footer={
         <p className="text-sm text-slate-500">
           New to RMS?{" "}
@@ -197,5 +199,5 @@ function LoginRoleForm({ roleKey }) {
         </div>
       </form>
     </AuthModeShell>
-  )
+  );
 }
