@@ -6,11 +6,7 @@ import {
 
 const STORAGE_KEY = 'MS-auth-session'
 const LEGACY_STORAGE_KEY = 'MS-auth-user'
-const DEFAULT_API_BASE_URL = 'http://localhost:5000'
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL).replace(
-  /\/$/,
-  ''
-)
+const apiBaseUrl = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000').replace(/\/$/, '')
 const AuthContext = createContext(null)
 const LOGIN_FIELD_MESSAGES = new Set([
   'Please fill in all required fields',
