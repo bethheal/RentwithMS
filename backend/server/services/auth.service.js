@@ -288,7 +288,12 @@ export async function signupUser(userData) {
   try {
     delivery = await sendVerification(user, userData.verificationMethod, verificationPayload)
   } catch (error) {
-    console.error('Failed to send verification:', error)
+    console.error('[Signup] Failed to send verification:', {
+      userId: user.id,
+      email: user.email,
+      method: userData.verificationMethod,
+      error: error.message,
+    })
     delivery = null
   }
 
@@ -397,7 +402,12 @@ export async function resendSignupVerification(payload) {
       verificationPayload
     )
   } catch (error) {
-    console.error('Failed to send verification:', error)
+    console.error('[Resend] Failed to send verification:', {
+      userId: updatedUser.id,
+      email: updatedUser.email,
+      method: payload.verificationMethod,
+      error: error.message,
+    })
     delivery = null
   }
 
