@@ -283,8 +283,14 @@ export async function signupUser(userData) {
     },
   })
 
-  // Send verification after user is created (not inside transaction)
-  const delivery = await sendVerification(user, userData.verificationMethod, verificationPayload)
+  // Send verification - don't fail signup if email fails
+  let delivery
+  try {
+    delivery = await sendVerification(user, userData.verificationMethod, verificationPayload)
+  } catch (error) {
+    console.error('Failed to send verification:', error)
+    delivery = null
+  }
 
   return buildVerificationResponse(user, userData.verificationMethod, delivery)
 }
@@ -382,12 +388,18 @@ export async function resendSignupVerification(payload) {
     },
   })
 
-  // Send verification after update completes (not inside transaction)
-  const delivery = await sendVerification(
-    updatedUser,
-    payload.verificationMethod,
-    verificationPayload
-  )
+  // Send verification - don't fail if email fails
+  let delivery
+  try {
+    delivery = await sendVerification(
+      updatedUser,
+      payload.verificationMethod,
+      verificationPayload
+    )
+  } catch (error) {
+    console.error('Failed to send verification:', error)
+    delivery = null
+  }
 
   return buildVerificationResponse(updatedUser, payload.verificationMethod, delivery)
 }
