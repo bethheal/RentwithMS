@@ -260,27 +260,38 @@ export async function signupUser(userData) {
 
   const passwordHash = await hashPassword(userData.password)
   const verificationPayload = buildVerificationPayload(userData.verificationMethod)
-  const user = await prisma.user.create({
-    data: {
-      name: userData.name.trim(),
-      email,
-      phoneNumber,
-      passwordHash,
-      role: userData.role,
-      emailVerified: false,
-      phoneVerified: false,
-      verificationMethod: userData.verificationMethod,
-      verificationCode: verificationPayload.verificationCode,
-      verificationToken: verificationPayload.verificationToken,
-      verificationCodeExpiry: verificationPayload.verificationCodeExpiry,
-      verificationTokenExpiry: verificationPayload.verificationTokenExpiry,
-      lastVerificationSentAt: verificationPayload.lastVerificationSentAt,
-      verificationAttempts: 0,
-      resendAttempts: 0,
-      accountStatus: 'pending_verification',
-    },
+
+  // Use transaction to ensure user is only created if verification sends successfully
+  const { user, delivery } = await prisma.$transaction(async (tx) => {
+    const createdUser = await tx.user.create({
+      data: {
+        name: userData.name.trim(),
+        email,
+        phoneNumber,
+        passwordHash,
+        role: userData.role,
+        emailVerified: false,
+        phoneVerified: false,
+        verificationMethod: userData.verificationMethod,
+        verificationCode: verificationPayload.verificationCode,
+        verificationToken: verificationPayload.verificationToken,
+        verificationCodeExpiry: verificationPayload.verificationCodeExpiry,
+        verificationTokenExpiry: verificationPayload.verificationTokenExpiry,
+        lastVerificationSentAt: verificationPayload.lastVerificationSentAt,
+        verificationAttempts: 0,
+        resendAttempts: 0,
+        accountStatus: 'pending_verification',
+      },
+    })
+
+    const verificationDelivery = await sendVerification(
+      createdUser,
+      userData.verificationMethod,
+      verificationPayload
+    )
+
+    return { user: createdUser, delivery: verificationDelivery }
   })
-  const delivery = await sendVerification(user, userData.verificationMethod, verificationPayload)
 
   return buildVerificationResponse(user, userData.verificationMethod, delivery)
 }
@@ -360,22 +371,33 @@ export async function resendSignupVerification(payload) {
   }
 
   const verificationPayload = buildVerificationPayload(payload.verificationMethod)
-  const updatedUser = await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      verificationMethod: payload.verificationMethod,
-      verificationCode: verificationPayload.verificationCode,
-      verificationToken: verificationPayload.verificationToken,
-      verificationCodeExpiry: verificationPayload.verificationCodeExpiry,
-      verificationTokenExpiry: verificationPayload.verificationTokenExpiry,
-      lastVerificationSentAt: verificationPayload.lastVerificationSentAt,
-      verificationAttempts: 0,
-      resendAttempts: {
-        increment: 1,
+
+  // Use transaction to ensure update is only persisted if verification sends successfully
+  const { updatedUser, delivery } = await prisma.$transaction(async (tx) => {
+    const updated = await tx.user.update({
+      where: { id: user.id },
+      data: {
+        verificationMethod: payload.verificationMethod,
+        verificationCode: verificationPayload.verificationCode,
+        verificationToken: verificationPayload.verificationToken,
+        verificationCodeExpiry: verificationPayload.verificationCodeExpiry,
+        verificationTokenExpiry: verificationPayload.verificationTokenExpiry,
+        lastVerificationSentAt: verificationPayload.lastVerificationSentAt,
+        verificationAttempts: 0,
+        resendAttempts: {
+          increment: 1,
+        },
       },
-    },
+    })
+
+    const verificationDelivery = await sendVerification(
+      updated,
+      payload.verificationMethod,
+      verificationPayload
+    )
+
+    return { updatedUser: updated, delivery: verificationDelivery }
   })
-  const delivery = await sendVerification(updatedUser, payload.verificationMethod, verificationPayload)
 
   return buildVerificationResponse(updatedUser, payload.verificationMethod, delivery)
 }
