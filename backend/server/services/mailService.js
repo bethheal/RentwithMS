@@ -1,31 +1,28 @@
-import dotenv from 'dotenv'
+import env from '../config/env.js'
 import nodemailer from 'nodemailer'
-import { fileURLToPath } from 'node:url'
-
-dotenv.config({ path: fileURLToPath(new URL('../../.env', import.meta.url)) })
 
 const transporter = nodemailer.createTransport({
-  host: process.env.MAIL_HOST ?? 'sandbox.smtp.mailtrap.io',
-  port: Number(process.env.MAIL_PORT ?? 2525),
-  secure: process.env.MAIL_SECURE === 'true',
+  host: env.MAIL_HOST,
+  port: Number(env.MAIL_PORT),
+  secure: env.MAIL_SECURE === 'true',
   auth: {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASS,
+    user: env.MAIL_USER,
+    pass: env.MAIL_PASS,
   },
 })
 
 // Log mail configuration on startup (without credentials)
 console.log('[Mail Service] Configured with:', {
-  host: process.env.MAIL_HOST ?? 'sandbox.smtp.mailtrap.io',
-  port: Number(process.env.MAIL_PORT ?? 2525),
-  secure: process.env.MAIL_SECURE === 'true',
-  hasUser: !!process.env.MAIL_USER,
-  hasPass: !!process.env.MAIL_PASS,
+  host: env.MAIL_HOST,
+  port: Number(env.MAIL_PORT),
+  secure: env.MAIL_SECURE === 'true',
+  hasUser: !!env.MAIL_USER,
+  hasPass: !!env.MAIL_PASS,
 })
 
 function buildFromAddress() {
-  const fromAddress = process.env.MAIL_FROM ?? 'noreply@rms.local'
-  const fromName = process.env.MAIL_FROM_NAME?.trim()
+  const fromAddress = env.MAIL_FROM
+  const fromName = env.MAIL_FROM_NAME?.trim()
 
   return fromName ? `"${fromName}" <${fromAddress}>` : fromAddress
 }

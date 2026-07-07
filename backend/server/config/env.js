@@ -52,6 +52,13 @@ const env = {
   CLOUDINARY_CLOUD_NAME: requireEnv('CLOUDINARY_CLOUD_NAME'),
   CLOUDINARY_API_KEY: requireEnv('CLOUDINARY_API_KEY'),
   CLOUDINARY_API_SECRET: requireEnv('CLOUDINARY_API_SECRET'),
+  MAIL_HOST: process.env.MAIL_HOST ?? 'sandbox.smtp.mailtrap.io',
+  MAIL_PORT: process.env.MAIL_PORT ?? '2525',
+  MAIL_SECURE: process.env.MAIL_SECURE ?? 'false',
+  MAIL_USER: process.env.MAIL_USER ?? '',
+  MAIL_PASS: process.env.MAIL_PASS ?? '',
+  MAIL_FROM: process.env.MAIL_FROM ?? 'noreply@rms.local',
+  MAIL_FROM_NAME: process.env.MAIL_FROM_NAME ?? '',
 }
 
 export default env
