@@ -52,12 +52,14 @@ const env = {
   CLOUDINARY_CLOUD_NAME: requireEnv('CLOUDINARY_CLOUD_NAME'),
   CLOUDINARY_API_KEY: requireEnv('CLOUDINARY_API_KEY'),
   CLOUDINARY_API_SECRET: requireEnv('CLOUDINARY_API_SECRET'),
-  MAIL_HOST: process.env.MAIL_HOST ?? 'sandbox.smtp.mailtrap.io',
-  MAIL_PORT: process.env.MAIL_PORT ?? '2525',
+  RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
+  RESEND_FROM: process.env.RESEND_FROM ?? process.env.MAIL_FROM ?? 'onboarding@resend.dev',
+  MAIL_HOST: process.env.MAIL_HOST ?? 'smtp.resend.com',
+  MAIL_PORT: process.env.MAIL_PORT ?? '587',
   MAIL_SECURE: process.env.MAIL_SECURE ?? 'false',
   MAIL_USER: process.env.MAIL_USER ?? '',
   MAIL_PASS: process.env.MAIL_PASS ?? '',
-  MAIL_FROM: process.env.MAIL_FROM ?? 'noreply@rms.local',
+  MAIL_FROM: process.env.MAIL_FROM ?? process.env.RESEND_FROM ?? 'noreply@rms.local',
   MAIL_FROM_NAME: process.env.MAIL_FROM_NAME ?? '',
 }
 

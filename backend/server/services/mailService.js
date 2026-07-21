@@ -1,27 +1,15 @@
 import env from '../config/env.js'
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 
-const transporter = nodemailer.createTransport({
-  host: env.MAIL_HOST,
-  port: Number(env.MAIL_PORT),
-  secure: env.MAIL_SECURE === 'true',
-  auth: {
-    user: env.MAIL_USER,
-    pass: env.MAIL_PASS,
-  },
-})
+const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null
 
-// Log mail configuration on startup (without credentials)
-console.log('[Mail Service] Configured with:', {
-  host: env.MAIL_HOST,
-  port: Number(env.MAIL_PORT),
-  secure: env.MAIL_SECURE === 'true',
-  hasUser: !!env.MAIL_USER,
-  hasPass: !!env.MAIL_PASS,
+console.log('[Mail Service] Configured with Resend:', {
+  hasApiKey: !!env.RESEND_API_KEY,
+  from: env.RESEND_FROM || env.MAIL_FROM,
 })
 
 function buildFromAddress() {
-  const fromAddress = env.MAIL_FROM
+  const fromAddress = env.RESEND_FROM || env.MAIL_FROM
   const fromName = env.MAIL_FROM_NAME?.trim()
 
   return fromName ? `"${fromName}" <${fromAddress}>` : fromAddress
@@ -32,10 +20,14 @@ export const sendVerificationEmail = async (
   otp,
   verificationUrl,
 ) => {
+  if (!resend) {
+    throw new Error('Resend API key is not configured')
+  }
+
   try {
-    const result = await transporter.sendMail({
+    const { data, error } = await resend.emails.send({
       from: buildFromAddress(),
-      to: email,
+      to: [email],
       subject: 'Verify Your Email',
       html: `
         <h2>Email Verification</h2>
@@ -44,8 +36,13 @@ export const sendVerificationEmail = async (
         ${verificationUrl ? `<p>You can also verify your account here: <a href="${verificationUrl}">Verify account</a></p>` : ''}
       `,
     })
-    console.log('[Mail] Verification email sent:', { to: email, messageId: result.messageId })
-    return result
+
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    console.log('[Mail] Verification email sent:', { to: email, id: data?.id })
+    return data
   } catch (error) {
     console.error('[Mail] Failed to send verification email:', error.message)
     throw error
@@ -54,12 +51,16 @@ export const sendVerificationEmail = async (
 
 export const sendPasswordResetEmail = async (
   email,
-  resetLink
+  resetLink,
 ) => {
+  if (!resend) {
+    throw new Error('Resend API key is not configured')
+  }
+
   try {
-    const result = await transporter.sendMail({
+    const { data, error } = await resend.emails.send({
       from: buildFromAddress(),
-      to: email,
+      to: [email],
       subject: 'Reset Password',
       html: `
         <a href="${resetLink}">
@@ -67,8 +68,13 @@ export const sendPasswordResetEmail = async (
         </a>
       `,
     })
-    console.log('[Mail] Password reset email sent:', { to: email, messageId: result.messageId })
-    return result
+
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    console.log('[Mail] Password reset email sent:', { to: email, id: data?.id })
+    return data
   } catch (error) {
     console.error('[Mail] Failed to send password reset email:', error.message)
     throw error
