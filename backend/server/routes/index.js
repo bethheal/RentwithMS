@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { checkDatabaseConnection } from '../config/prisma.js'
+import { sendTestEmail } from '../services/mailService.js'
 import authRoutes from './auth.routes.js'
 import blogRoutes from './blog.routes.js'
 import propertyRoutes from './property.routes.js'
@@ -29,6 +30,41 @@ router.get('/health', async (req, res) => {
         database: 'disconnected',
       },
       errors: [error.message],
+    })
+  }
+})
+
+router.get('/test-email', async (req, res) => {
+  const to = String(req.query.to ?? '').trim()
+
+  if (!to) {
+    res.status(400).json({
+      success: false,
+      message: 'Query parameter "to" is required.',
+    })
+    return
+  }
+
+  try {
+    const info = await sendTestEmail(to)
+
+    res.status(200).json({
+      success: true,
+      message: 'Test email sent.',
+      data: {
+        to,
+        messageId: info.messageId,
+        accepted: info.accepted,
+        rejected: info.rejected,
+      },
+    })
+  } catch (error) {
+    console.error('[Test Email] Failed:', error.message)
+
+    res.status(500).json({
+      success: false,
+      message: 'Test email failed.',
+      error: error.message,
     })
   }
 })

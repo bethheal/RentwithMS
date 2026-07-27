@@ -174,7 +174,8 @@ export default function VerificationPage() {
         nextVerification?.deliveryStatus === "failed"
       ) {
         setFormError(
-          "Email delivery failed. Check the Resend API key and sender domain, then try again.",
+          nextVerification.deliveryError ||
+            "Email delivery failed. Check the Resend API key and sender domain, then try again.",
         );
         setNotice("");
         return;

@@ -8,6 +8,8 @@ import env from "./config/env.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import { notFoundHandler } from "./middleware/notFound.middleware.js";
 import apiRoutes from "./routes/index.js";
+  import { verifyMailConnection } from './services/mailService.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,6 +63,11 @@ export function createApp() {
       });
     });
   }
+
+
+verifyMailConnection()
+  .then(() => console.log('✅ Gmail SMTP is ready'))
+  .catch(console.error);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

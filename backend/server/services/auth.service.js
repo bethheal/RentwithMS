@@ -13,7 +13,7 @@ const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000
 const EMAIL_OTP_TTL_MS = 10 * 60 * 1000
 const PHONE_OTP_TTL_MS = 10 * 60 * 1000
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000
-const RESEND_COOLDOWN_MS = 60 * 1000
+const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000
 const MAX_VERIFICATION_ATTEMPTS = 5
 const UNVERIFIED_ACCOUNT_TTL_MS = 48 * 60 * 60 * 1000
 const DEACTIVATION_GRACE_PERIOD_MS = 30 * 24 * 60 * 60 * 1000
@@ -102,7 +102,12 @@ function buildVerificationPayload(method) {
   }
 }
 
-function buildVerificationResponse(user, method, delivery, { reusedPendingAccount = false } = {}) {
+function buildVerificationResponse(
+  user,
+  method,
+  delivery,
+  { deliveryError = null, reusedPendingAccount = false } = {},
+) {
   return {
     userId: user.id,
     email: user.email,
@@ -113,9 +118,10 @@ function buildVerificationResponse(user, method, delivery, { reusedPendingAccoun
     activationRequirement: env.ACCOUNT_ACTIVATION_REQUIREMENT,
     verificationMethod: method,
     expiresAt: user.verificationCodeExpiry,
-    cooldownSeconds: Math.ceil(RESEND_COOLDOWN_MS / 1000),
+    cooldownSeconds: Math.ceil(VERIFICATION_RESEND_COOLDOWN_MS / 1000),
     resendAttempts: user.resendAttempts,
     deliveryStatus: delivery ? 'sent' : 'failed',
+    deliveryError,
     reusedPendingAccount,
     verificationCode: method === 'phone' ? delivery?.code : undefined,
     verificationToken: delivery?.token,
@@ -155,7 +161,7 @@ async function updateVerificationCredentials(
   }
 
   const lastSentAt = user.lastVerificationSentAt?.getTime() ?? 0
-  const nextAllowedAt = lastSentAt + RESEND_COOLDOWN_MS
+  const nextAllowedAt = lastSentAt + VERIFICATION_RESEND_COOLDOWN_MS
 
   if (enforceCooldown && Date.now() < nextAllowedAt) {
     const retryAfterSeconds = Math.ceil((nextAllowedAt - Date.now()) / 1000)
@@ -165,7 +171,7 @@ async function updateVerificationCredentials(
       {
         reason: 'resend_cooldown',
         retryAfterSeconds,
-        cooldownSeconds: Math.ceil(RESEND_COOLDOWN_MS / 1000),
+        cooldownSeconds: Math.ceil(VERIFICATION_RESEND_COOLDOWN_MS / 1000),
       },
     )
   }
@@ -186,19 +192,23 @@ async function updateVerificationCredentials(
   })
 
   let delivery
+  let deliveryError = null
   try {
     delivery = await sendVerification(updatedUser, method, verificationPayload)
   } catch (error) {
+    deliveryError = error.message
     console.error('[Verification] Failed to send verification:', {
       userId: updatedUser.id,
       email: updatedUser.email,
       method,
       error: error.message,
+      cause: error.cause?.message,
     })
     delivery = null
   }
 
   return buildVerificationResponse(updatedUser, method, delivery, {
+    deliveryError,
     reusedPendingAccount,
   })
 }
@@ -461,7 +471,7 @@ export async function getSignupVerificationStatus(userId) {
     activationRequirement: env.ACCOUNT_ACTIVATION_REQUIREMENT,
     verificationMethod: user.verificationMethod,
     expiresAt: user.verificationCodeExpiry,
-    cooldownSeconds: Math.ceil(RESEND_COOLDOWN_MS / 1000),
+    cooldownSeconds: Math.ceil(VERIFICATION_RESEND_COOLDOWN_MS / 1000),
     resendAttempts: user.resendAttempts,
     deliveryStatus: null,
   }
