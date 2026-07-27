@@ -192,6 +192,7 @@ function SignupRoleForm({ roleKey }) {
   const selectedVerificationMethod =
     verificationState?.verificationMethod ?? formValues.verificationMethod;
   const isPhoneVerification = selectedVerificationMethod === "phone";
+  const didDeliveryFail = verificationState?.deliveryStatus === "failed";
   const verificationDestination = isPhoneVerification
     ? verificationState?.phoneNumber || formValues.phoneNumber
     : verificationState?.email || formValues.email;
@@ -414,11 +415,19 @@ function SignupRoleForm({ roleKey }) {
             <div className="rounded-[1.25rem] border border-[#CFE0FF] bg-[#F7FAFF] px-4 py-4 text-sm text-[#18399F]">
               <p className="font-semibold">Verify your account</p>
               <p className="mt-2 leading-6 text-[#3656B7]">
-                {isPhoneVerification
+                {didDeliveryFail && !isPhoneVerification
+                  ? "We could not send the email code to "
+                  : isPhoneVerification
                   ? "Enter the 6-digit code for "
                   : "We sent a 6-digit code to "}
                 {verificationDestination}. Complete this step before logging in.
               </p>
+              {didDeliveryFail && !isPhoneVerification ? (
+                <p className="mt-3 rounded-[0.9rem] border border-[#F3C9BF] bg-white px-3 py-2 font-semibold text-[#9A3D2A]">
+                  Email delivery is not configured yet. Check the Resend API key
+                  and sender domain, then resend the code.
+                </p>
+              ) : null}
               {isPhoneVerification && verificationState?.verificationCode ? (
                 <p className="mt-3 rounded-[0.9rem] border border-[#CFE0FF] bg-white px-3 py-2 font-semibold text-[#18399F]">
                   Phone code: {verificationState.verificationCode}

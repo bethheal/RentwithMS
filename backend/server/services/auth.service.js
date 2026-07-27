@@ -101,6 +101,7 @@ function buildVerificationResponse(user, method, delivery) {
     cooldownSeconds: Math.ceil(RESEND_COOLDOWN_MS / 1000),
     maxResendAttempts: MAX_RESEND_ATTEMPTS,
     resendAttempts: user.resendAttempts,
+    deliveryStatus: delivery ? 'sent' : 'failed',
     verificationCode: method === 'phone' ? delivery?.code : undefined,
     verificationToken: delivery?.token,
     verificationUrl: delivery?.url,
