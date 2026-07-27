@@ -89,89 +89,13 @@ function getSignupValidationMessage({
 
 export default function SignupPage() {
   const [searchParams] = useSearchParams();
-  const verificationUserId = searchParams.get("userId");
-  const verificationToken = searchParams.get("verifyToken");
   const roleKey = normalizeAuthRole(searchParams.get("role"));
-
-  if (verificationUserId && verificationToken) {
-    return (
-      <SignupLinkVerification
-        userId={verificationUserId}
-        verificationToken={verificationToken}
-      />
-    );
-  }
 
   if (!roleKey) {
     return <AuthRoleSelectionStep mode="signup" />;
   }
 
   return <SignupRoleForm key={roleKey} roleKey={roleKey} />;
-}
-
-function SignupLinkVerification({ userId, verificationToken }) {
-  const navigate = useNavigate();
-  const { verifySignup } = useAuth();
-  const [status, setStatus] = useState("Verifying your account...");
-
-  useEffect(() => {
-    let isMounted = true;
-
-    verifySignup({
-      userId,
-      token: verificationToken,
-    })
-      .then(() => {
-        if (isMounted) {
-          setStatus("Account verified successfully.");
-          navigate(ROUTES.LOGIN, { replace: true });
-        }
-      })
-      .catch((error) => {
-        if (isMounted) {
-          setStatus(
-            error.message || "Verification link is invalid or expired.",
-          );
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [navigate, userId, verificationToken, verifySignup]);
-
-  return (
-    <AuthModeShell
-      backAriaLabel="Back to signup"
-      backTo={ROUTES.SIGNUP}
-      formId="verification-link-status"
-      googleDisabled
-      googleLabel="Sign up with Google"
-      isGoogleLoading={false}
-      modeLabel="Verification"
-      roleKey="tenant"
-      roleLabel="Account"
-      submitDisabled
-      submitLabel="Verifying"
-      footer={
-        <p className="text-[0.72rem] uppercase tracking-[0.34em] text-[#7C86A6]">
-          already verified{" "}
-          <Link
-            to={ROUTES.LOGIN}
-            className="font-bold text-[#18399F] underline underline-offset-4"
-          >
-            LOGIN
-          </Link>
-        </p>
-      }
-    >
-      <div id="verification-link-status" className="space-y-4">
-        <div className="rounded-[1.25rem] border border-[#CFE0FF] bg-[#F7FAFF] px-4 py-4 text-sm text-[#18399F]">
-          {status}
-        </div>
-      </div>
-    </AuthModeShell>
-  );
 }
 
 function SignupRoleForm({ roleKey }) {

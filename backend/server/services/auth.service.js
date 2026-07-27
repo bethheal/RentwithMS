@@ -12,7 +12,6 @@ const googleClient = env.GOOGLE_CLIENT_ID ? new OAuth2Client(env.GOOGLE_CLIENT_I
 const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000
 const EMAIL_OTP_TTL_MS = 10 * 60 * 1000
 const PHONE_OTP_TTL_MS = 10 * 60 * 1000
-const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000
 const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000
 const MAX_VERIFICATION_ATTEMPTS = 5
 const UNVERIFIED_ACCOUNT_TTL_MS = 48 * 60 * 60 * 1000
@@ -88,16 +87,12 @@ function generateOtp() {
 
 function buildVerificationPayload(method) {
   const code = generateOtp()
-  const token = randomBytes(32).toString('hex')
   const isPhone = method === 'phone'
 
   return {
     code,
-    token,
     verificationCode: hashVerificationSecret(code),
-    verificationToken: hashVerificationSecret(token),
     verificationCodeExpiry: new Date(Date.now() + (isPhone ? PHONE_OTP_TTL_MS : EMAIL_OTP_TTL_MS)),
-    verificationTokenExpiry: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),
     lastVerificationSentAt: new Date(),
   }
 }
@@ -124,19 +119,13 @@ function buildVerificationResponse(
     deliveryError,
     reusedPendingAccount,
     verificationCode: method === 'phone' ? delivery?.code : undefined,
-    verificationToken: delivery?.token,
-    verificationUrl: delivery?.url,
   }
 }
 
-async function sendEmailVerification(user, { code, token }) {
-  const verificationUrl = `${getPrimaryClientOrigin()}/auth/verify-email?token=${encodeURIComponent(
-    token
-  )}`
+async function sendEmailVerification(user, { code }) {
+  await sendVerificationEmail(user.email, code)
 
-  await sendVerificationEmail(user.email, code, verificationUrl)
-
-  return { code, token, url: verificationUrl }
+  return { code }
 }
 
 function sendSmsVerification(user, { code }) {
@@ -182,9 +171,7 @@ async function updateVerificationCredentials(
     data: {
       verificationMethod: method,
       verificationCode: verificationPayload.verificationCode,
-      verificationToken: verificationPayload.verificationToken,
       verificationCodeExpiry: verificationPayload.verificationCodeExpiry,
-      verificationTokenExpiry: verificationPayload.verificationTokenExpiry,
       lastVerificationSentAt: verificationPayload.lastVerificationSentAt,
       verificationAttempts: 0,
       resendAttempts: enforceCooldown ? { increment: 1 } : user.resendAttempts,
@@ -377,17 +364,11 @@ export async function signupUser(userData) {
 }
 
 export async function verifySignup(payload) {
-  const submittedSecret = payload.token || payload.code
+  const submittedSecret = payload.code
   const hashedSecret = submittedSecret ? hashVerificationSecret(submittedSecret) : ''
-  const user = payload.token
-    ? await prisma.user.findFirst({
-        where: {
-          verificationToken: hashedSecret,
-        },
-      })
-    : await prisma.user.findUnique({
-        where: { id: payload.userId },
-      })
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+  })
 
   if (!user || user.accountStatus !== 'pending_verification') {
     throw new ApiError(400, 'Verification request is invalid or already completed.')
@@ -397,8 +378,8 @@ export async function verifySignup(payload) {
     throw new ApiError(429, 'Too many failed verification attempts. Please contact support.')
   }
 
-  const storedSecret = payload.token ? user.verificationToken : user.verificationCode
-  const expiry = payload.token ? user.verificationTokenExpiry : user.verificationCodeExpiry
+  const storedSecret = user.verificationCode
+  const expiry = user.verificationCodeExpiry
 
   if (!submittedSecret || !storedSecret || !expiry || expiry <= new Date()) {
     await prisma.user.update({
@@ -418,8 +399,8 @@ export async function verifySignup(payload) {
 
   const nextUser = {
     ...user,
-    emailVerified: payload.token ? true : user.emailVerified,
-    phoneVerified: payload.token ? user.phoneVerified : true,
+    emailVerified: user.verificationMethod === 'email' ? true : user.emailVerified,
+    phoneVerified: user.verificationMethod === 'phone' ? true : user.phoneVerified,
   }
 
   const verifiedUser = await prisma.user.update({

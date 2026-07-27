@@ -56,12 +56,6 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: ROUTES.VERIFY_EMAIL,
-        element: (
-          <GuestOnlyRoute>{renderLazyPage(VerificationPage)}</GuestOnlyRoute>
-        ),
-      },
-      {
         path: ROUTES.RESET_PASSWORD,
         element: (
           <GuestOnlyRoute>{renderLazyPage(ResetPasswordPage)}</GuestOnlyRoute>

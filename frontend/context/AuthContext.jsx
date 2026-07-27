@@ -176,12 +176,12 @@ export function AuthProvider({ children }) {
     return verificationData
   }
 
-  const verifySignup = async ({ userId, code, token: verificationToken }) => {
+  const verifySignup = async ({ userId, code }) => {
     const verifiedUser = await requestAuth('/api/auth/signup/verify', {
       method: 'POST',
       body: {
         userId,
-        ...(verificationToken ? { token: verificationToken } : { code }),
+        code,
       },
     })
 

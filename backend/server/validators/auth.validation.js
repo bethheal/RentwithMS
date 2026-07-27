@@ -138,16 +138,10 @@ export const signupSchema = {
 export const verifySignupSchema = {
   body: z
     .object({
-      userId: z.string().uuid('Verification request is invalid.').optional(),
-      code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit verification code.').optional(),
-      token: z.string().trim().min(20, 'Verification token is invalid.').optional(),
+      userId: z.string().uuid('Verification request is invalid.'),
+      code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit verification code.'),
     })
-    .strict()
-    .superRefine((data, context) => {
-      if (!data.token && (!data.userId || !data.code)) {
-        addRequiredFieldIssue(context, 'code', 'Enter the verification code.')
-      }
-    }),
+    .strict(),
 }
 
 export const verificationStatusSchema = {

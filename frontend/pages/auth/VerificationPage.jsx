@@ -79,7 +79,6 @@ export default function VerificationPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const roleKey = searchParams.get("role") || "tenant";
-  const token = searchParams.get("token");
   const userIdFromQuery = searchParams.get("userId");
   const {
     getSignupVerification,
@@ -90,6 +89,9 @@ export default function VerificationPage() {
     () => location.state?.verification ?? null,
   );
   const [otpCode, setOtpCode] = useState("");
+  const [codeMethod, setCodeMethod] = useState(
+    () => location.state?.verification?.verificationMethod ?? "email",
+  );
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [notice, setNotice] = useState(() =>
     location.state?.verification?.reusedPendingAccount
@@ -115,30 +117,11 @@ export default function VerificationPage() {
       try {
         setFormError("");
 
-        if (token) {
-          const verifiedUser = await verifySignup({ token });
-          if (!isMounted) return;
-          setVerification({
-            userId: verifiedUser.id,
-            email: verifiedUser.email,
-            phoneNumber: verifiedUser.phoneNumber,
-            emailVerified: verifiedUser.emailVerified,
-            phoneVerified: verifiedUser.phoneVerified,
-            accountStatus: verifiedUser.accountStatus,
-          });
-          if (verifiedUser.accountStatus === "active") {
-            navigate(buildLoginPath(roleKey, verifiedUser.email), { replace: true });
-            return;
-          }
-          setNotice("Email verified. Your status has been updated.");
-          navigate(buildVerifyPath(verifiedUser.id, roleKey), { replace: true });
-          return;
-        }
-
         if (userIdFromQuery) {
           const status = await getSignupVerification(userIdFromQuery);
           if (!isMounted) return;
           setVerification(status);
+          setCodeMethod(status.verificationMethod ?? "email");
         }
       } catch (error) {
         if (!isMounted) return;
@@ -153,7 +136,7 @@ export default function VerificationPage() {
     return () => {
       isMounted = false;
     };
-  }, [getSignupVerification, navigate, roleKey, token, userIdFromQuery, verifySignup]);
+  }, [getSignupVerification, userIdFromQuery]);
 
   const handleSend = async (verificationMethod) => {
     if (!verification?.userId || cooldownSeconds > 0) return;
@@ -167,6 +150,7 @@ export default function VerificationPage() {
         verificationMethod,
       });
       setVerification((current) => ({ ...current, ...nextVerification }));
+      setCodeMethod(verificationMethod);
       setCooldownSeconds(nextVerification?.cooldownSeconds ?? 60);
       setOtpCode("");
       if (
@@ -182,7 +166,7 @@ export default function VerificationPage() {
       }
       setNotice(
         verificationMethod === "email"
-          ? "We've sent a verification link to your email. Please click the link to verify your account."
+          ? "We've sent a verification code to your email. Enter the code below to verify your account."
           : "A verification code has been sent to your phone.",
       );
     } catch (error) {
@@ -198,7 +182,7 @@ export default function VerificationPage() {
     }
   };
 
-  const handlePhoneVerify = async (event) => {
+  const handleCodeVerify = async (event) => {
     event.preventDefault();
 
     if (!verification?.userId) return;
@@ -226,11 +210,15 @@ export default function VerificationPage() {
         navigate(buildLoginPath(roleKey, verifiedUser.email), { replace: true });
         return;
       }
-      setNotice("Phone verified. Your status has been updated.");
+      setNotice(
+        codeMethod === "email"
+          ? "Email verified. Your status has been updated."
+          : "Phone verified. Your status has been updated.",
+      );
     } catch (error) {
-      const message = error.message || "Phone verification failed.";
+      const message = error.message || "Verification failed.";
       setFormError(message);
-      showErrorToast(error, "Phone verification failed.");
+      showErrorToast(error, "Verification failed.");
     } finally {
       setIsVerifying(false);
     }
@@ -244,7 +232,7 @@ export default function VerificationPage() {
     <AuthModeShell
       backAriaLabel="Back to login"
       backTo={ROUTES.LOGIN}
-      formId="phone-verification-form"
+      formId="verification-code-form"
       googleDisabled
       googleLabel="Sign up with Google"
       isGoogleLoading={false}
@@ -326,12 +314,12 @@ export default function VerificationPage() {
         </VerificationCard>
 
         <form
-          id="phone-verification-form"
-          onSubmit={handlePhoneVerify}
+          id="verification-code-form"
+          onSubmit={handleCodeVerify}
           className="space-y-4"
         >
           <AuthFormField
-            label="Phone Verification Code*"
+            label={`${codeMethod === "email" ? "Email" : "Phone"} Verification Code*`}
             name="otpCode"
             type="text"
             inputMode="numeric"
@@ -345,10 +333,14 @@ export default function VerificationPage() {
           />
           <button
             type="submit"
-            disabled={isVerifying || !verification?.userId || isPhoneVerified}
+            disabled={
+              isVerifying ||
+              !verification?.userId ||
+              (codeMethod === "email" ? isEmailVerified : isPhoneVerified)
+            }
             className="inline-flex h-14 w-full items-center justify-center gap-3 rounded-full bg-[#18399F] px-6 text-sm font-extrabold uppercase tracking-[0.2em] text-white shadow-[0_18px_32px_rgba(24,57,159,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#102A74] disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-[#6F89D4] disabled:shadow-none"
           >
-            <span>{isVerifying ? "Verifying..." : "Submit Phone Code"}</span>
+            <span>{isVerifying ? "Verifying..." : "Submit Code"}</span>
             <CheckCircle2 className="size-4" />
           </button>
         </form>
