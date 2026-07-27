@@ -54,6 +54,8 @@ const env = {
   CLOUDINARY_API_SECRET: requireEnv('CLOUDINARY_API_SECRET'),
   RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
   RESEND_FROM: process.env.RESEND_FROM ?? process.env.MAIL_FROM ?? 'onboarding@resend.dev',
+  ACCOUNT_ACTIVATION_REQUIREMENT:
+    process.env.ACCOUNT_ACTIVATION_REQUIREMENT === 'both' ? 'both' : 'either',
   MAIL_HOST: process.env.MAIL_HOST ?? 'smtp.resend.com',
   MAIL_PORT: process.env.MAIL_PORT ?? '587',
   MAIL_SECURE: process.env.MAIL_SECURE ?? 'false',

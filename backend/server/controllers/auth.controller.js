@@ -10,6 +10,7 @@ import {
   resetUserPassword,
   resendSignupVerification,
   signupUser,
+  getSignupVerificationStatus,
   verifySignup,
 } from '../services/auth.service.js'
 
@@ -43,6 +44,15 @@ export const verifySignupAccount = asyncHandler(async (req, res) => {
     success: true,
     message: 'Account verified successfully. Please log in to continue.',
     data: serializeUser(user),
+  })
+})
+
+export const getSignupVerification = asyncHandler(async (req, res) => {
+  const verification = await getSignupVerificationStatus(req.params.userId)
+
+  res.status(200).json({
+    success: true,
+    data: verification,
   })
 })
 

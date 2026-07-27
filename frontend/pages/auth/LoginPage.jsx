@@ -123,6 +123,15 @@ function LoginRoleForm({ roleKey }) {
       await login(formValues);
       navigate(ROUTES.DASHBOARD);
     } catch (error) {
+      if (error.details?.reason === "pending_verification") {
+        navigate(
+          `${ROUTES.VERIFY_ACCOUNT}?userId=${encodeURIComponent(
+            error.details.userId,
+          )}&role=${encodeURIComponent(roleKey)}`,
+        );
+        return;
+      }
+
       const nextMessage = error.message || "Login failed.";
       setFormError(nextMessage);
       showErrorToast(error, "Login failed.");

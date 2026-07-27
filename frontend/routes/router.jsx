@@ -15,6 +15,9 @@ const ResetPasswordPage = lazy(
   () => import("../pages/auth/ResetPasswordPage.jsx"),
 );
 const SignupPage = lazy(() => import("../pages/auth/SignupPage.jsx"));
+const VerificationPage = lazy(
+  () => import("../pages/auth/VerificationPage.jsx"),
+);
 const DashboardPage = lazy(
   () => import("../pages/dashboard/DashboardPage.jsx"),
 );
@@ -45,6 +48,18 @@ export const router = createBrowserRouter([
       {
         path: ROUTES.SIGNUP,
         element: <GuestOnlyRoute>{renderLazyPage(SignupPage)}</GuestOnlyRoute>,
+      },
+      {
+        path: ROUTES.VERIFY_ACCOUNT,
+        element: (
+          <GuestOnlyRoute>{renderLazyPage(VerificationPage)}</GuestOnlyRoute>
+        ),
+      },
+      {
+        path: ROUTES.VERIFY_EMAIL,
+        element: (
+          <GuestOnlyRoute>{renderLazyPage(VerificationPage)}</GuestOnlyRoute>
+        ),
       },
       {
         path: ROUTES.RESET_PASSWORD,

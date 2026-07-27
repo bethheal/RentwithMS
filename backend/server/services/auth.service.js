@@ -11,9 +11,9 @@ import { sendVerificationEmail } from './mailService.js'
 const googleClient = env.GOOGLE_CLIENT_ID ? new OAuth2Client(env.GOOGLE_CLIENT_ID) : null
 const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000
 const EMAIL_OTP_TTL_MS = 10 * 60 * 1000
-const PHONE_OTP_TTL_MS = 5 * 60 * 1000
+const PHONE_OTP_TTL_MS = 10 * 60 * 1000
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000
-const RESEND_COOLDOWN_MS = 45 * 1000
+const RESEND_COOLDOWN_MS = 60 * 1000
 const MAX_RESEND_ATTEMPTS = 5
 const MAX_VERIFICATION_ATTEMPTS = 5
 const UNVERIFIED_ACCOUNT_TTL_MS = 48 * 60 * 60 * 1000
@@ -71,6 +71,18 @@ function assertVerificationMethod(method) {
   }
 }
 
+function isVerifiedEnough(user) {
+  if (env.ACCOUNT_ACTIVATION_REQUIREMENT === 'both') {
+    return Boolean(user.emailVerified && user.phoneVerified)
+  }
+
+  return Boolean(user.emailVerified || user.phoneVerified)
+}
+
+function getAccountStatusForVerification(user) {
+  return isVerifiedEnough(user) ? 'active' : 'pending_verification'
+}
+
 function generateOtp() {
   return String(randomInt(100000, 1000000))
 }
@@ -91,17 +103,22 @@ function buildVerificationPayload(method) {
   }
 }
 
-function buildVerificationResponse(user, method, delivery) {
+function buildVerificationResponse(user, method, delivery, { reusedPendingAccount = false } = {}) {
   return {
     userId: user.id,
     email: user.email,
     phoneNumber: user.phoneNumber,
+    emailVerified: user.emailVerified,
+    phoneVerified: user.phoneVerified,
+    accountStatus: user.accountStatus,
+    activationRequirement: env.ACCOUNT_ACTIVATION_REQUIREMENT,
     verificationMethod: method,
     expiresAt: user.verificationCodeExpiry,
     cooldownSeconds: Math.ceil(RESEND_COOLDOWN_MS / 1000),
     maxResendAttempts: MAX_RESEND_ATTEMPTS,
     resendAttempts: user.resendAttempts,
     deliveryStatus: delivery ? 'sent' : 'failed',
+    reusedPendingAccount,
     verificationCode: method === 'phone' ? delivery?.code : undefined,
     verificationToken: delivery?.token,
     verificationUrl: delivery?.url,
@@ -109,9 +126,9 @@ function buildVerificationResponse(user, method, delivery) {
 }
 
 async function sendEmailVerification(user, { code, token }) {
-  const verificationUrl = `${getPrimaryClientOrigin()}/signup?userId=${encodeURIComponent(
-    user.id
-  )}&verifyToken=${encodeURIComponent(token)}`
+  const verificationUrl = `${getPrimaryClientOrigin()}/auth/verify-email?token=${encodeURIComponent(
+    token
+  )}`
 
   await sendVerificationEmail(user.email, code, verificationUrl)
 
@@ -126,6 +143,61 @@ async function sendVerification(user, method, payload) {
   return method === 'phone'
     ? sendSmsVerification(user, payload)
     : sendEmailVerification(user, payload)
+}
+
+async function updateVerificationCredentials(
+  user,
+  method,
+  { enforceCooldown = false, reusedPendingAccount = false } = {},
+) {
+  assertVerificationMethod(method)
+
+  if (user.accountStatus !== 'pending_verification') {
+    throw new ApiError(400, 'This account is already verified. Please log in.')
+  }
+
+  if (user.resendAttempts >= MAX_RESEND_ATTEMPTS) {
+    throw new ApiError(429, 'Maximum resend attempts reached. Please try again later.')
+  }
+
+  const lastSentAt = user.lastVerificationSentAt?.getTime() ?? 0
+  const nextAllowedAt = lastSentAt + RESEND_COOLDOWN_MS
+
+  if (enforceCooldown && Date.now() < nextAllowedAt) {
+    throw new ApiError(429, `Please wait ${Math.ceil((nextAllowedAt - Date.now()) / 1000)} seconds before requesting another code.`)
+  }
+
+  const verificationPayload = buildVerificationPayload(method)
+  const updatedUser = await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      verificationMethod: method,
+      verificationCode: verificationPayload.verificationCode,
+      verificationToken: verificationPayload.verificationToken,
+      verificationCodeExpiry: verificationPayload.verificationCodeExpiry,
+      verificationTokenExpiry: verificationPayload.verificationTokenExpiry,
+      lastVerificationSentAt: verificationPayload.lastVerificationSentAt,
+      verificationAttempts: 0,
+      resendAttempts: enforceCooldown ? { increment: 1 } : user.resendAttempts,
+    },
+  })
+
+  let delivery
+  try {
+    delivery = await sendVerification(updatedUser, method, verificationPayload)
+  } catch (error) {
+    console.error('[Verification] Failed to send verification:', {
+      userId: updatedUser.id,
+      email: updatedUser.email,
+      method,
+      error: error.message,
+    })
+    delivery = null
+  }
+
+  return buildVerificationResponse(updatedUser, method, delivery, {
+    reusedPendingAccount,
+  })
 }
 
 async function deleteExpiredUnverifiedAccounts() {
@@ -215,7 +287,15 @@ export async function loginUser(credentials) {
   }
 
   if (user.accountStatus === 'pending_verification') {
-    throw new ApiError(403, 'Please verify your account before logging in.')
+    throw new ApiError(403, 'Please verify your account before logging in.', {
+      reason: 'pending_verification',
+      userId: user.id,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      emailVerified: user.emailVerified,
+      phoneVerified: user.phoneVerified,
+      activationRequirement: env.ACCOUNT_ACTIVATION_REQUIREMENT,
+    })
   }
 
   if (user.accountStatus === 'deleted') {
@@ -253,59 +333,48 @@ export async function signupUser(userData) {
     where: {
       OR: [{ email }, { phoneNumber }],
     },
-    select: { id: true },
   })
 
   if (existingUser) {
-    throw new ApiError(409, 'A user with this email address or phone number already exists.')
+    if (existingUser.accountStatus !== 'pending_verification') {
+      throw new ApiError(409, 'An account with this email or phone number already exists. Please log in.')
+    }
+
+    return updateVerificationCredentials(existingUser, userData.verificationMethod, {
+      reusedPendingAccount: true,
+    })
   }
 
-  const passwordHash = await hashPassword(userData.password)
-  const verificationPayload = buildVerificationPayload(userData.verificationMethod)
-
-  // Create user in database first
   const user = await prisma.user.create({
     data: {
       name: userData.name.trim(),
       email,
       phoneNumber,
-      passwordHash,
+      passwordHash: await hashPassword(userData.password),
       role: userData.role,
       emailVerified: false,
       phoneVerified: false,
-      verificationMethod: userData.verificationMethod,
-      verificationCode: verificationPayload.verificationCode,
-      verificationToken: verificationPayload.verificationToken,
-      verificationCodeExpiry: verificationPayload.verificationCodeExpiry,
-      verificationTokenExpiry: verificationPayload.verificationTokenExpiry,
-      lastVerificationSentAt: verificationPayload.lastVerificationSentAt,
       verificationAttempts: 0,
       resendAttempts: 0,
       accountStatus: 'pending_verification',
     },
   })
 
-  // Send verification - don't fail signup if email fails
-  let delivery
-  try {
-    delivery = await sendVerification(user, userData.verificationMethod, verificationPayload)
-  } catch (error) {
-    console.error('[Signup] Failed to send verification:', {
-      userId: user.id,
-      email: user.email,
-      method: userData.verificationMethod,
-      error: error.message,
-    })
-    delivery = null
-  }
-
-  return buildVerificationResponse(user, userData.verificationMethod, delivery)
+  return updateVerificationCredentials(user, userData.verificationMethod)
 }
 
 export async function verifySignup(payload) {
-  const user = await prisma.user.findUnique({
-    where: { id: payload.userId },
-  })
+  const submittedSecret = payload.token || payload.code
+  const hashedSecret = submittedSecret ? hashVerificationSecret(submittedSecret) : ''
+  const user = payload.token
+    ? await prisma.user.findFirst({
+        where: {
+          verificationToken: hashedSecret,
+        },
+      })
+    : await prisma.user.findUnique({
+        where: { id: payload.userId },
+      })
 
   if (!user || user.accountStatus !== 'pending_verification') {
     throw new ApiError(400, 'Verification request is invalid or already completed.')
@@ -315,7 +384,6 @@ export async function verifySignup(payload) {
     throw new ApiError(429, 'Too many failed verification attempts. Please contact support.')
   }
 
-  const submittedSecret = payload.token || payload.code
   const storedSecret = payload.token ? user.verificationToken : user.verificationCode
   const expiry = payload.token ? user.verificationTokenExpiry : user.verificationCodeExpiry
 
@@ -327,7 +395,7 @@ export async function verifySignup(payload) {
     throw new ApiError(400, 'This verification code or link has expired.')
   }
 
-  if (hashVerificationSecret(submittedSecret) !== storedSecret) {
+  if (hashedSecret !== storedSecret) {
     await prisma.user.update({
       where: { id: user.id },
       data: { verificationAttempts: { increment: 1 } },
@@ -335,12 +403,18 @@ export async function verifySignup(payload) {
     throw new ApiError(400, 'Verification code is incorrect.')
   }
 
+  const nextUser = {
+    ...user,
+    emailVerified: payload.token ? true : user.emailVerified,
+    phoneVerified: payload.token ? user.phoneVerified : true,
+  }
+
   const verifiedUser = await prisma.user.update({
     where: { id: user.id },
     data: {
-      accountStatus: 'active',
-      emailVerified: user.verificationMethod === 'email' ? true : user.emailVerified,
-      phoneVerified: user.verificationMethod === 'phone' ? true : user.phoneVerified,
+      accountStatus: getAccountStatusForVerification(nextUser),
+      emailVerified: nextUser.emailVerified,
+      phoneVerified: nextUser.phoneVerified,
       verificationCode: null,
       verificationToken: null,
       verificationCodeExpiry: null,
@@ -354,9 +428,44 @@ export async function verifySignup(payload) {
   return verifiedUser
 }
 
-export async function resendSignupVerification(payload) {
-  assertVerificationMethod(payload.verificationMethod)
+export async function getSignupVerificationStatus(userId) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      phoneNumber: true,
+      emailVerified: true,
+      phoneVerified: true,
+      accountStatus: true,
+      verificationMethod: true,
+      verificationCodeExpiry: true,
+      resendAttempts: true,
+    },
+  })
 
+  if (!user) {
+    throw new ApiError(404, 'Verification request was not found.')
+  }
+
+  return {
+    userId: user.id,
+    email: user.email,
+    phoneNumber: user.phoneNumber,
+    emailVerified: user.emailVerified,
+    phoneVerified: user.phoneVerified,
+    accountStatus: user.accountStatus,
+    activationRequirement: env.ACCOUNT_ACTIVATION_REQUIREMENT,
+    verificationMethod: user.verificationMethod,
+    expiresAt: user.verificationCodeExpiry,
+    cooldownSeconds: Math.ceil(RESEND_COOLDOWN_MS / 1000),
+    maxResendAttempts: MAX_RESEND_ATTEMPTS,
+    resendAttempts: user.resendAttempts,
+    deliveryStatus: null,
+  }
+}
+
+export async function resendSignupVerification(payload) {
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
   })
@@ -365,55 +474,9 @@ export async function resendSignupVerification(payload) {
     throw new ApiError(400, 'Verification request is invalid or already completed.')
   }
 
-  if (user.resendAttempts >= MAX_RESEND_ATTEMPTS) {
-    throw new ApiError(429, 'Maximum resend attempts reached. Please try again later.')
-  }
-
-  const lastSentAt = user.lastVerificationSentAt?.getTime() ?? 0
-  const nextAllowedAt = lastSentAt + RESEND_COOLDOWN_MS
-
-  if (Date.now() < nextAllowedAt) {
-    throw new ApiError(429, `Please wait ${Math.ceil((nextAllowedAt - Date.now()) / 1000)} seconds before requesting another code.`)
-  }
-
-  const verificationPayload = buildVerificationPayload(payload.verificationMethod)
-
-  // Update user in database first
-  const updatedUser = await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      verificationMethod: payload.verificationMethod,
-      verificationCode: verificationPayload.verificationCode,
-      verificationToken: verificationPayload.verificationToken,
-      verificationCodeExpiry: verificationPayload.verificationCodeExpiry,
-      verificationTokenExpiry: verificationPayload.verificationTokenExpiry,
-      lastVerificationSentAt: verificationPayload.lastVerificationSentAt,
-      verificationAttempts: 0,
-      resendAttempts: {
-        increment: 1,
-      },
-    },
+  return updateVerificationCredentials(user, payload.verificationMethod, {
+    enforceCooldown: true,
   })
-
-  // Send verification - don't fail if email fails
-  let delivery
-  try {
-    delivery = await sendVerification(
-      updatedUser,
-      payload.verificationMethod,
-      verificationPayload
-    )
-  } catch (error) {
-    console.error('[Resend] Failed to send verification:', {
-      userId: updatedUser.id,
-      email: updatedUser.email,
-      method: payload.verificationMethod,
-      error: error.message,
-    })
-    delivery = null
-  }
-
-  return buildVerificationResponse(updatedUser, payload.verificationMethod, delivery)
 }
 
 export async function authenticateWithGoogle(payload) {
@@ -444,7 +507,10 @@ export async function authenticateWithGoogle(payload) {
       emailVerified: true,
       passwordHash,
       role: nextRole,
-      accountStatus: 'active',
+      accountStatus: getAccountStatusForVerification({
+        emailVerified: true,
+        phoneVerified: false,
+      }),
     },
   })
 

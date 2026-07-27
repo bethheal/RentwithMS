@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import {
   forgotPassword,
+  getSignupVerification,
   getCurrentUser,
   googleAuth,
   login,
@@ -21,12 +22,14 @@ import {
   resendVerificationSchema,
   resetPasswordSchema,
   signupSchema,
+  verificationStatusSchema,
   verifySignupSchema,
 } from '../validators/auth.validation.js'
 
 const router = Router()
 
 router.post('/signup', validateRequest(signupSchema), signup)
+router.get('/signup/status/:userId', validateRequest(verificationStatusSchema), getSignupVerification)
 router.post('/signup/verify', validateRequest(verifySignupSchema), verifySignupAccount)
 router.post('/signup/resend', validateRequest(resendVerificationSchema), resendSignupCode)
 router.post('/login', validateRequest(loginSchema), login)

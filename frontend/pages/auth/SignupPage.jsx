@@ -275,7 +275,7 @@ function SignupRoleForm({ roleKey }) {
       setIsSubmitting(true);
       setFormError("");
 
-      await register({
+      const verificationData = await register({
         name: formValues.fullName,
         email: formValues.email,
         phoneNumber: formValues.phoneNumber,
@@ -283,10 +283,17 @@ function SignupRoleForm({ roleKey }) {
         confirmPassword: formValues.confirmPassword,
         role: roleKey,
         verificationMethod: formValues.verificationMethod,
-      }).then((verificationData) => {
-        setVerificationState(verificationData);
-        setCooldownSeconds(verificationData?.cooldownSeconds ?? 45);
       });
+
+      navigate(
+        `${ROUTES.VERIFY_ACCOUNT}?userId=${encodeURIComponent(
+          verificationData.userId,
+        )}&role=${encodeURIComponent(roleKey)}`,
+        {
+          replace: true,
+          state: { verification: verificationData },
+        },
+      );
     } catch (error) {
       const nextMessage = error.message || "Signup failed.";
       setFormError(nextMessage);

@@ -60,9 +60,11 @@ async function requestAuth(path, { body, method = 'GET', token } = {}) {
   }
 
   if (!response.ok || !payload?.success) {
-    const details = payload?.errors ?? []
+    const details = payload?.errors ?? null
     const message =
-      details.find((detail) => detail?.message)?.message ??
+      (Array.isArray(details)
+        ? details.find((detail) => detail?.message)?.message
+        : null) ??
       payload?.message ??
       'Something went wrong. Please try again.'
     const error = new Error(message)
@@ -81,6 +83,10 @@ function normalizeLoginError(error) {
       : ''
 
   if (LOGIN_FIELD_MESSAGES.has(message)) {
+    return error
+  }
+
+  if (error?.details?.reason === 'pending_verification') {
     return error
   }
 
@@ -162,7 +168,11 @@ export function AuthProvider({ children }) {
       },
     })
 
-    showSuccessToast('Verification code sent.')
+    showSuccessToast(
+      verificationData.reusedPendingAccount
+        ? "Your account is awaiting verification. We've sent you a new verification code."
+        : 'Verification code sent.',
+    )
     return verificationData
   }
 
@@ -177,6 +187,10 @@ export function AuthProvider({ children }) {
 
     showSuccessToast('Account verified successfully. Please log in.')
     return verifiedUser
+  }
+
+  const getSignupVerification = async (userId) => {
+    return requestAuth(`/api/auth/signup/status/${encodeURIComponent(userId)}`)
   }
 
   const resendSignupVerification = async ({ userId, verificationMethod }) => {
@@ -321,6 +335,7 @@ export function AuthProvider({ children }) {
         login,
         register,
         verifySignup,
+        getSignupVerification,
         resendSignupVerification,
         loginWithGoogle,
         deactivateAccount,
