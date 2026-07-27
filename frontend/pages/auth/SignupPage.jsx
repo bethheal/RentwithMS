@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Mail, Smartphone } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AuthFormField from "../../components/auth/AuthFormField.jsx";
 import AuthModeShell from "../../components/auth/AuthModeShell.jsx";
@@ -24,6 +24,19 @@ const initialState = {
   acceptedTerms: false,
 };
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
+
+const verificationOptions = [
+  {
+    value: "email",
+    label: "Email",
+    Icon: Mail,
+  },
+  {
+    value: "phone",
+    label: "Phone",
+    Icon: Smartphone,
+  },
+];
 
 function getSignupValidationMessage({
   fullName,
@@ -176,6 +189,12 @@ function SignupRoleForm({ roleKey }) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const selectedVerificationMethod =
+    verificationState?.verificationMethod ?? formValues.verificationMethod;
+  const isPhoneVerification = selectedVerificationMethod === "phone";
+  const verificationDestination = isPhoneVerification
+    ? verificationState?.phoneNumber || formValues.phoneNumber
+    : verificationState?.email || formValues.email;
 
   useEffect(() => {
     if (cooldownSeconds <= 0) {
@@ -320,7 +339,7 @@ function SignupRoleForm({ roleKey }) {
 
       const nextVerificationState = await resendSignupVerification({
         userId: verificationState.userId,
-        verificationMethod: formValues.verificationMethod,
+        verificationMethod: selectedVerificationMethod,
       });
 
       setVerificationState(nextVerificationState);
@@ -395,12 +414,16 @@ function SignupRoleForm({ roleKey }) {
             <div className="rounded-[1.25rem] border border-[#CFE0FF] bg-[#F7FAFF] px-4 py-4 text-sm text-[#18399F]">
               <p className="font-semibold">Verify your account</p>
               <p className="mt-2 leading-6 text-[#3656B7]">
-                We sent a 6-digit code to{" "}
-                {formValues.verificationMethod === "phone"
-                  ? formValues.phoneNumber
-                  : formValues.email}
-                . Complete this step before logging in.
+                {isPhoneVerification
+                  ? "Enter the 6-digit code for "
+                  : "We sent a 6-digit code to "}
+                {verificationDestination}. Complete this step before logging in.
               </p>
+              {isPhoneVerification && verificationState?.verificationCode ? (
+                <p className="mt-3 rounded-[0.9rem] border border-[#CFE0FF] bg-white px-3 py-2 font-semibold text-[#18399F]">
+                  Phone code: {verificationState.verificationCode}
+                </p>
+              ) : null}
             </div>
           ) : null}
 
@@ -453,6 +476,39 @@ function SignupRoleForm({ roleKey }) {
                 autoComplete="new-password"
                 onChange={handleChange}
               />
+
+              <fieldset className="space-y-3">
+                <legend className="text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-[#2347A1]">
+                  Verify account with*
+                </legend>
+                <div className="grid grid-cols-2 gap-3">
+                  {verificationOptions.map(({ Icon, label, value }) => {
+                    const isSelected = formValues.verificationMethod === value;
+
+                    return (
+                      <label
+                        key={value}
+                        className={`flex h-14 cursor-pointer items-center justify-center gap-2 rounded-[1.1rem] border px-4 text-sm font-semibold transition-all duration-300 ${
+                          isSelected
+                            ? "border-[#18399F] bg-[#EEF4FF] text-[#18399F] shadow-[0_12px_24px_rgba(24,57,159,0.1)]"
+                            : "border-[#D7E2F4] bg-[#FBFCFF] text-slate-500 hover:border-[#BFD2FF] hover:bg-white"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="verificationMethod"
+                          value={value}
+                          checked={isSelected}
+                          onChange={handleChange}
+                          className="sr-only"
+                        />
+                        <Icon className="size-4" />
+                        <span>{label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
             </>
           ) : (
             <>
