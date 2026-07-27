@@ -61,8 +61,8 @@ const env = {
   MAIL_SECURE: process.env.MAIL_SECURE ?? 'false',
   MAIL_USER: process.env.MAIL_USER ?? '',
   MAIL_PASS: process.env.MAIL_PASS ?? '',
-  MAIL_FROM: process.env.MAIL_FROM ?? process.env.RESEND_FROM ?? 'noreply@rms.local',
-  MAIL_FROM_NAME: process.env.MAIL_FROM_NAME ?? '',
+  MAIL_FROM: process.env.MAIL_FROM ?? process.env.RESEND_FROM ?? 'onboarding@resend.dev',
+  MAIL_FROM_NAME: process.env.MAIL_FROM_NAME ?? 'MS Group',
 }
 
 export default env

@@ -346,6 +346,7 @@ function SignupRoleForm({ roleKey }) {
       setFormError("");
 
       const nextVerificationState = await resendSignupVerification({
+        email: verificationState.email || formValues.email,
         userId: verificationState.userId,
         verificationMethod: selectedVerificationMethod,
       });
@@ -356,6 +357,10 @@ function SignupRoleForm({ roleKey }) {
     } catch (error) {
       const nextMessage =
         error.message || "Could not resend verification code.";
+      const retryAfterSeconds = error.details?.retryAfterSeconds;
+      if (error.details?.reason === "resend_cooldown" && retryAfterSeconds) {
+        setCooldownSeconds(retryAfterSeconds);
+      }
       setFormError(nextMessage);
       showErrorToast(error, "Could not resend verification code.");
     } finally {

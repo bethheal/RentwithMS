@@ -162,6 +162,7 @@ export default function VerificationPage() {
       setLoadingMethod(verificationMethod);
       setFormError("");
       const nextVerification = await resendSignupVerification({
+        email: verification.email,
         userId: verification.userId,
         verificationMethod,
       });
@@ -185,6 +186,10 @@ export default function VerificationPage() {
       );
     } catch (error) {
       const message = error.message || "Verification could not be sent.";
+      const retryAfterSeconds = error.details?.retryAfterSeconds;
+      if (error.details?.reason === "resend_cooldown" && retryAfterSeconds) {
+        setCooldownSeconds(retryAfterSeconds);
+      }
       setFormError(message);
       showErrorToast(error, "Verification could not be sent.");
     } finally {

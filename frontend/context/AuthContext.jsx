@@ -193,10 +193,11 @@ export function AuthProvider({ children }) {
     return requestAuth(`/api/auth/signup/status/${encodeURIComponent(userId)}`)
   }
 
-  const resendSignupVerification = async ({ userId, verificationMethod }) => {
+  const resendSignupVerification = async ({ email, userId, verificationMethod }) => {
     const verificationData = await requestAuth('/api/auth/signup/resend', {
       method: 'POST',
       body: {
+        email,
         userId,
         verificationMethod,
       },

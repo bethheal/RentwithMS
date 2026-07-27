@@ -161,10 +161,23 @@ export const verificationStatusSchema = {
 export const resendVerificationSchema = {
   body: z
     .object({
-      userId: z.string().uuid('Verification request is invalid.'),
-      verificationMethod: verificationMethodSchema,
+      email: z.string().optional(),
+      userId: z.string().uuid('Verification request is invalid.').optional(),
+      verificationMethod: verificationMethodSchema.optional(),
     })
-    .strict(),
+    .strict()
+    .superRefine((data, context) => {
+      const email = normalizeString(data.email)
+
+      if (!email && !data.userId) {
+        addRequiredFieldIssue(context, 'email', 'Please enter your email')
+        return
+      }
+
+      if (email && !z.email().safeParse(email).success) {
+        addRequiredFieldIssue(context, 'email', 'Please provide a valid email address.')
+      }
+    }),
 }
 
 export const accountPasswordConfirmationSchema = {

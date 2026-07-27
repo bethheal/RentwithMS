@@ -14,7 +14,6 @@ const EMAIL_OTP_TTL_MS = 10 * 60 * 1000
 const PHONE_OTP_TTL_MS = 10 * 60 * 1000
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000
 const RESEND_COOLDOWN_MS = 60 * 1000
-const MAX_RESEND_ATTEMPTS = 5
 const MAX_VERIFICATION_ATTEMPTS = 5
 const UNVERIFIED_ACCOUNT_TTL_MS = 48 * 60 * 60 * 1000
 const DEACTIVATION_GRACE_PERIOD_MS = 30 * 24 * 60 * 60 * 1000
@@ -115,7 +114,6 @@ function buildVerificationResponse(user, method, delivery, { reusedPendingAccoun
     verificationMethod: method,
     expiresAt: user.verificationCodeExpiry,
     cooldownSeconds: Math.ceil(RESEND_COOLDOWN_MS / 1000),
-    maxResendAttempts: MAX_RESEND_ATTEMPTS,
     resendAttempts: user.resendAttempts,
     deliveryStatus: delivery ? 'sent' : 'failed',
     reusedPendingAccount,
@@ -156,15 +154,20 @@ async function updateVerificationCredentials(
     throw new ApiError(400, 'This account is already verified. Please log in.')
   }
 
-  if (user.resendAttempts >= MAX_RESEND_ATTEMPTS) {
-    throw new ApiError(429, 'Maximum resend attempts reached. Please try again later.')
-  }
-
   const lastSentAt = user.lastVerificationSentAt?.getTime() ?? 0
   const nextAllowedAt = lastSentAt + RESEND_COOLDOWN_MS
 
   if (enforceCooldown && Date.now() < nextAllowedAt) {
-    throw new ApiError(429, `Please wait ${Math.ceil((nextAllowedAt - Date.now()) / 1000)} seconds before requesting another code.`)
+    const retryAfterSeconds = Math.ceil((nextAllowedAt - Date.now()) / 1000)
+    throw new ApiError(
+      429,
+      `Please wait ${retryAfterSeconds} seconds before requesting another code.`,
+      {
+        reason: 'resend_cooldown',
+        retryAfterSeconds,
+        cooldownSeconds: Math.ceil(RESEND_COOLDOWN_MS / 1000),
+      },
+    )
   }
 
   const verificationPayload = buildVerificationPayload(method)
@@ -459,22 +462,25 @@ export async function getSignupVerificationStatus(userId) {
     verificationMethod: user.verificationMethod,
     expiresAt: user.verificationCodeExpiry,
     cooldownSeconds: Math.ceil(RESEND_COOLDOWN_MS / 1000),
-    maxResendAttempts: MAX_RESEND_ATTEMPTS,
     resendAttempts: user.resendAttempts,
     deliveryStatus: null,
   }
 }
 
 export async function resendSignupVerification(payload) {
-  const user = await prisma.user.findUnique({
-    where: { id: payload.userId },
-  })
+  const user = payload.email
+    ? await prisma.user.findUnique({
+        where: { email: normalizeEmail(payload.email) },
+      })
+    : await prisma.user.findUnique({
+        where: { id: payload.userId },
+      })
 
   if (!user || user.accountStatus !== 'pending_verification') {
     throw new ApiError(400, 'Verification request is invalid or already completed.')
   }
 
-  return updateVerificationCredentials(user, payload.verificationMethod, {
+  return updateVerificationCredentials(user, payload.verificationMethod ?? 'email', {
     enforceCooldown: true,
   })
 }
