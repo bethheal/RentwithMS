@@ -14,6 +14,13 @@ function buildVerifyPath(userId, roleKey) {
   return `${ROUTES.VERIFY_ACCOUNT}?${params.toString()}`;
 }
 
+function buildLoginPath(roleKey, email) {
+  const params = new URLSearchParams();
+  if (roleKey) params.set("role", roleKey);
+  if (email) params.set("email", email);
+  return `${ROUTES.LOGIN}?${params.toString()}`;
+}
+
 function VerificationStatus({ verified, label }) {
   const Icon = verified ? CheckCircle2 : XCircle;
 
@@ -119,6 +126,10 @@ export default function VerificationPage() {
             phoneVerified: verifiedUser.phoneVerified,
             accountStatus: verifiedUser.accountStatus,
           });
+          if (verifiedUser.accountStatus === "active") {
+            navigate(buildLoginPath(roleKey, verifiedUser.email), { replace: true });
+            return;
+          }
           setNotice("Email verified. Your status has been updated.");
           navigate(buildVerifyPath(verifiedUser.id, roleKey), { replace: true });
           return;
@@ -157,6 +168,16 @@ export default function VerificationPage() {
       setVerification((current) => ({ ...current, ...nextVerification }));
       setCooldownSeconds(nextVerification?.cooldownSeconds ?? 60);
       setOtpCode("");
+      if (
+        verificationMethod === "email" &&
+        nextVerification?.deliveryStatus === "failed"
+      ) {
+        setFormError(
+          "Email delivery failed. Check the Resend API key and sender domain, then try again.",
+        );
+        setNotice("");
+        return;
+      }
       setNotice(
         verificationMethod === "email"
           ? "We've sent a verification link to your email. Please click the link to verify your account."
@@ -195,6 +216,10 @@ export default function VerificationPage() {
         accountStatus: verifiedUser.accountStatus,
       }));
       setOtpCode("");
+      if (verifiedUser.accountStatus === "active") {
+        navigate(buildLoginPath(roleKey, verifiedUser.email), { replace: true });
+        return;
+      }
       setNotice("Phone verified. Your status has been updated.");
     } catch (error) {
       const message = error.message || "Phone verification failed.";

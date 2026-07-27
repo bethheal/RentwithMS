@@ -40,20 +40,28 @@ function getLoginValidationMessage({ email, password }) {
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const roleKey = normalizeAuthRole(searchParams.get("role"));
+  const emailFromQuery = searchParams.get("email")?.trim() ?? "";
 
   if (!roleKey) {
     return <AuthRoleSelectionStep mode="login" />;
   }
 
-  return <LoginRoleForm key={roleKey} roleKey={roleKey} />;
+  return (
+    <LoginRoleForm
+      key={`${roleKey}:${emailFromQuery}`}
+      roleKey={roleKey}
+      initialEmail={emailFromQuery}
+    />
+  );
 }
 
-function LoginRoleForm({ roleKey }) {
+function LoginRoleForm({ initialEmail = "", roleKey }) {
   const navigate = useNavigate();
   const { login, loginWithGoogle } = useAuth();
   const roleConfig = authRoleContent[roleKey];
   const [formValues, setFormValues] = useState(() => ({
     ...emptyState,
+    email: initialEmail,
   }));
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
