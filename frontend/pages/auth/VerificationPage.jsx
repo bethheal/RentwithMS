@@ -7,6 +7,9 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { ROUTES } from "../../routes/routePaths.js";
 import { showErrorToast } from "../../utils/toast.js";
 
+const isEmailVerificationEnabled =
+  import.meta.env.VITE_EMAIL_VERIFICATION_ENABLED !== "false";
+
 function buildLoginPath(roleKey, email) {
   const params = new URLSearchParams();
   if (roleKey) params.set("role", roleKey);
@@ -91,6 +94,12 @@ export default function VerificationPage() {
   const [formError, setFormError] = useState("");
   const [loadingMethod, setLoadingMethod] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+
+  useEffect(() => {
+    if (!isEmailVerificationEnabled) {
+      navigate(buildLoginPath(roleKey), { replace: true });
+    }
+  }, [navigate, roleKey]);
 
   useEffect(() => {
     if (cooldownSeconds <= 0) return undefined;
@@ -205,6 +214,10 @@ export default function VerificationPage() {
 
   const isEmailVerified = Boolean(verification?.emailVerified);
   const isActive = verification?.accountStatus === "active";
+
+  if (!isEmailVerificationEnabled) {
+    return null;
+  }
 
   return (
     <AuthModeShell

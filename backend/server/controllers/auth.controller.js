@@ -32,7 +32,10 @@ export const signup = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: 'Verification code sent. Complete verification to activate your account.',
+    message:
+      verification.verificationRequired === false
+        ? 'Account created. You can log in now.'
+        : 'Verification code sent. Complete verification to activate your account.',
     data: verification,
   })
 })

@@ -23,6 +23,8 @@ const initialState = {
   acceptedTerms: false,
 };
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
+const isEmailVerificationEnabled =
+  import.meta.env.VITE_EMAIL_VERIFICATION_ENABLED !== "false";
 
 function getSignupValidationMessage({
   fullName,
@@ -190,6 +192,13 @@ function SignupRoleForm({ roleKey }) {
         role: roleKey,
         verificationMethod: "email",
       });
+
+      if (verificationData.verificationRequired === false) {
+        navigate(`/login?role=${roleKey}&email=${encodeURIComponent(formValues.email)}`, {
+          replace: true,
+        });
+        return;
+      }
 
       navigate(
         `${ROUTES.VERIFY_ACCOUNT}?userId=${encodeURIComponent(
@@ -397,9 +406,11 @@ function SignupRoleForm({ roleKey }) {
                 onChange={handleChange}
               />
 
-              <p className="rounded-[1.1rem] border border-[#D7E2F4] bg-[#F7FAFF] px-4 py-3 text-sm font-semibold text-[#18399F]">
-                We will verify your account with a 6-digit email code.
-              </p>
+              {isEmailVerificationEnabled ? (
+                <p className="rounded-[1.1rem] border border-[#D7E2F4] bg-[#F7FAFF] px-4 py-3 text-sm font-semibold text-[#18399F]">
+                  We will verify your account with a 6-digit email code.
+                </p>
+              ) : null}
             </>
           ) : (
             <>

@@ -169,7 +169,9 @@ export function AuthProvider({ children }) {
     })
 
     showSuccessToast(
-      verificationData.reusedPendingAccount
+      verificationData.verificationRequired === false
+        ? 'Account created. You can log in now.'
+        : verificationData.reusedPendingAccount
         ? "Your account is awaiting verification. We've sent you a new verification code."
         : 'Verification code sent.',
     )

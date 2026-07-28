@@ -69,6 +69,10 @@ function assertVerificationMethod(method) {
 }
 
 function isVerifiedEnough(user) {
+  if (!env.EMAIL_VERIFICATION_ENABLED) {
+    return true
+  }
+
   return Boolean(user.emailVerified)
 }
 
@@ -188,6 +192,39 @@ async function updateVerificationCredentials(
   })
 }
 
+async function activateUserWithoutVerification(user) {
+  return prisma.user.update({
+    where: { id: user.id },
+    data: {
+      accountStatus: 'active',
+      emailVerified: true,
+      phoneVerified: user.phoneVerified,
+      verificationMethod: null,
+      verificationCode: null,
+      verificationToken: null,
+      verificationCodeExpiry: null,
+      verificationTokenExpiry: null,
+      verificationAttempts: 0,
+      resendAttempts: 0,
+      lastVerificationSentAt: null,
+    },
+  })
+}
+
+function buildVerificationDisabledResponse(user, { reusedPendingAccount = false } = {}) {
+  return {
+    userId: user.id,
+    email: user.email,
+    phoneNumber: user.phoneNumber,
+    emailVerified: user.emailVerified,
+    phoneVerified: user.phoneVerified,
+    accountStatus: user.accountStatus,
+    activationRequirement: env.ACCOUNT_ACTIVATION_REQUIREMENT,
+    verificationRequired: false,
+    reusedPendingAccount,
+  }
+}
+
 async function deleteExpiredUnverifiedAccounts() {
   const cutoff = new Date(Date.now() - UNVERIFIED_ACCOUNT_TTL_MS)
 
@@ -275,6 +312,9 @@ export async function loginUser(credentials) {
   }
 
   if (user.accountStatus === 'pending_verification') {
+    if (!env.EMAIL_VERIFICATION_ENABLED) {
+      user = await activateUserWithoutVerification(user)
+    } else {
     throw new ApiError(403, 'Please verify your account before logging in.', {
       reason: 'pending_verification',
       userId: user.id,
@@ -284,6 +324,7 @@ export async function loginUser(credentials) {
       phoneVerified: user.phoneVerified,
       activationRequirement: env.ACCOUNT_ACTIVATION_REQUIREMENT,
     })
+    }
   }
 
   if (user.accountStatus === 'deleted') {
@@ -328,6 +369,13 @@ export async function signupUser(userData) {
       throw new ApiError(409, 'An account with this email or phone number already exists. Please log in.')
     }
 
+    if (!env.EMAIL_VERIFICATION_ENABLED) {
+      const activatedUser = await activateUserWithoutVerification(existingUser)
+      return buildVerificationDisabledResponse(activatedUser, {
+        reusedPendingAccount: true,
+      })
+    }
+
     return updateVerificationCredentials(existingUser, userData.verificationMethod, {
       reusedPendingAccount: true,
     })
@@ -340,13 +388,17 @@ export async function signupUser(userData) {
       phoneNumber,
       passwordHash: await hashPassword(userData.password),
       role: userData.role,
-      emailVerified: false,
+      emailVerified: !env.EMAIL_VERIFICATION_ENABLED,
       phoneVerified: false,
       verificationAttempts: 0,
       resendAttempts: 0,
-      accountStatus: 'pending_verification',
+      accountStatus: env.EMAIL_VERIFICATION_ENABLED ? 'pending_verification' : 'active',
     },
   })
+
+  if (!env.EMAIL_VERIFICATION_ENABLED) {
+    return buildVerificationDisabledResponse(user)
+  }
 
   return updateVerificationCredentials(user, userData.verificationMethod)
 }
