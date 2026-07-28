@@ -52,8 +52,7 @@ const env = {
   CLOUDINARY_CLOUD_NAME: requireEnv('CLOUDINARY_CLOUD_NAME'),
   CLOUDINARY_API_KEY: requireEnv('CLOUDINARY_API_KEY'),
   CLOUDINARY_API_SECRET: requireEnv('CLOUDINARY_API_SECRET'),
-  ACCOUNT_ACTIVATION_REQUIREMENT:
-    process.env.ACCOUNT_ACTIVATION_REQUIREMENT === 'both' ? 'both' : 'either',
+  ACCOUNT_ACTIVATION_REQUIREMENT: 'email',
   RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
   RESEND_FROM: process.env.RESEND_FROM ?? process.env.MAIL_FROM ?? 'onboarding@resend.dev',
   EMAIL_USER: process.env.EMAIL_USER ?? '',

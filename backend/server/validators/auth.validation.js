@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 const publicSignupRoleSchema = z.enum(['landlord', 'tenant'])
-const verificationMethodSchema = z.enum(['email', 'phone'])
+const verificationMethodSchema = z.literal('email')
 const passwordStrengthSchema = z
   .string()
   .min(8, 'Password must be at least 8 characters long.')

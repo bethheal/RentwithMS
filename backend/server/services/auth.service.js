@@ -11,7 +11,6 @@ import { sendVerificationEmail } from './mailService.js'
 const googleClient = env.GOOGLE_CLIENT_ID ? new OAuth2Client(env.GOOGLE_CLIENT_ID) : null
 const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000
 const EMAIL_OTP_TTL_MS = 10 * 60 * 1000
-const PHONE_OTP_TTL_MS = 10 * 60 * 1000
 const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000
 const MAX_VERIFICATION_ATTEMPTS = 5
 const UNVERIFIED_ACCOUNT_TTL_MS = 48 * 60 * 60 * 1000
@@ -64,17 +63,13 @@ function assertPublicRole(role) {
 }
 
 function assertVerificationMethod(method) {
-  if (method !== 'email' && method !== 'phone') {
-    throw new ApiError(400, 'Choose email or phone verification.')
+  if (method !== 'email') {
+    throw new ApiError(400, 'Email verification is the only supported verification method.')
   }
 }
 
 function isVerifiedEnough(user) {
-  if (env.ACCOUNT_ACTIVATION_REQUIREMENT === 'both') {
-    return Boolean(user.emailVerified && user.phoneVerified)
-  }
-
-  return Boolean(user.emailVerified || user.phoneVerified)
+  return Boolean(user.emailVerified)
 }
 
 function getAccountStatusForVerification(user) {
@@ -87,12 +82,11 @@ function generateOtp() {
 
 function buildVerificationPayload(method) {
   const code = generateOtp()
-  const isPhone = method === 'phone'
 
   return {
     code,
     verificationCode: hashVerificationSecret(code),
-    verificationCodeExpiry: new Date(Date.now() + (isPhone ? PHONE_OTP_TTL_MS : EMAIL_OTP_TTL_MS)),
+    verificationCodeExpiry: new Date(Date.now() + EMAIL_OTP_TTL_MS),
     lastVerificationSentAt: new Date(),
   }
 }
@@ -118,7 +112,6 @@ function buildVerificationResponse(
     deliveryStatus: delivery ? 'sent' : 'failed',
     deliveryError,
     reusedPendingAccount,
-    verificationCode: method === 'phone' ? delivery?.code : undefined,
   }
 }
 
@@ -128,14 +121,9 @@ async function sendEmailVerification(user, { code }) {
   return { code }
 }
 
-function sendSmsVerification(user, { code }) {
-  return { code }
-}
-
 async function sendVerification(user, method, payload) {
-  return method === 'phone'
-    ? sendSmsVerification(user, payload)
-    : sendEmailVerification(user, payload)
+  assertVerificationMethod(method)
+  return sendEmailVerification(user, payload)
 }
 
 async function updateVerificationCredentials(
@@ -399,8 +387,8 @@ export async function verifySignup(payload) {
 
   const nextUser = {
     ...user,
-    emailVerified: user.verificationMethod === 'email' ? true : user.emailVerified,
-    phoneVerified: user.verificationMethod === 'phone' ? true : user.phoneVerified,
+    emailVerified: true,
+    phoneVerified: user.phoneVerified,
   }
 
   const verifiedUser = await prisma.user.update({

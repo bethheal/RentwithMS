@@ -1,18 +1,11 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Mail, Smartphone, XCircle } from "lucide-react";
+import { CheckCircle2, Mail, XCircle } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import AuthFormField from "../../components/auth/AuthFormField.jsx";
 import AuthModeShell from "../../components/auth/AuthModeShell.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { ROUTES } from "../../routes/routePaths.js";
 import { showErrorToast } from "../../utils/toast.js";
-
-function buildVerifyPath(userId, roleKey) {
-  const params = new URLSearchParams();
-  if (userId) params.set("userId", userId);
-  if (roleKey) params.set("role", roleKey);
-  return `${ROUTES.VERIFY_ACCOUNT}?${params.toString()}`;
-}
 
 function buildLoginPath(roleKey, email) {
   const params = new URLSearchParams();
@@ -89,9 +82,6 @@ export default function VerificationPage() {
     () => location.state?.verification ?? null,
   );
   const [otpCode, setOtpCode] = useState("");
-  const [codeMethod, setCodeMethod] = useState(
-    () => location.state?.verification?.verificationMethod ?? "email",
-  );
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [notice, setNotice] = useState(() =>
     location.state?.verification?.reusedPendingAccount
@@ -121,7 +111,6 @@ export default function VerificationPage() {
           const status = await getSignupVerification(userIdFromQuery);
           if (!isMounted) return;
           setVerification(status);
-          setCodeMethod(status.verificationMethod ?? "email");
         }
       } catch (error) {
         if (!isMounted) return;
@@ -138,25 +127,21 @@ export default function VerificationPage() {
     };
   }, [getSignupVerification, userIdFromQuery]);
 
-  const handleSend = async (verificationMethod) => {
+  const handleSend = async () => {
     if (!verification?.userId || cooldownSeconds > 0) return;
 
     try {
-      setLoadingMethod(verificationMethod);
+      setLoadingMethod("email");
       setFormError("");
       const nextVerification = await resendSignupVerification({
         email: verification.email,
         userId: verification.userId,
-        verificationMethod,
+        verificationMethod: "email",
       });
       setVerification((current) => ({ ...current, ...nextVerification }));
-      setCodeMethod(verificationMethod);
       setCooldownSeconds(nextVerification?.cooldownSeconds ?? 60);
       setOtpCode("");
-      if (
-        verificationMethod === "email" &&
-        nextVerification?.deliveryStatus === "failed"
-      ) {
+      if (nextVerification?.deliveryStatus === "failed") {
         setFormError(
           nextVerification.deliveryError ||
             "Email delivery failed. Check the Resend API key and sender domain, then try again.",
@@ -165,9 +150,7 @@ export default function VerificationPage() {
         return;
       }
       setNotice(
-        verificationMethod === "email"
-          ? "We've sent a verification code to your email. Enter the code below to verify your account."
-          : "A verification code has been sent to your phone.",
+        "We've sent a verification code to your email. Enter the code below to verify your account.",
       );
     } catch (error) {
       const message = error.message || "Verification could not be sent.";
@@ -210,11 +193,7 @@ export default function VerificationPage() {
         navigate(buildLoginPath(roleKey, verifiedUser.email), { replace: true });
         return;
       }
-      setNotice(
-        codeMethod === "email"
-          ? "Email verified. Your status has been updated."
-          : "Phone verified. Your status has been updated.",
-      );
+      setNotice("Email verified. Your status has been updated.");
     } catch (error) {
       const message = error.message || "Verification failed.";
       setFormError(message);
@@ -225,7 +204,6 @@ export default function VerificationPage() {
   };
 
   const isEmailVerified = Boolean(verification?.emailVerified);
-  const isPhoneVerified = Boolean(verification?.phoneVerified);
   const isActive = verification?.accountStatus === "active";
 
   return (
@@ -257,16 +235,12 @@ export default function VerificationPage() {
         <section className="rounded-[1.25rem] border border-[#CFE0FF] bg-[#F7FAFF] px-4 py-4 text-sm text-[#18399F]">
           <h1 className="font-semibold">Verify Your Account</h1>
           <p className="mt-2 leading-6 text-[#3656B7]">
-            Choose email, phone, or both depending on what is still pending.
+            Enter the 6-digit code sent to your email to activate your account.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <VerificationStatus
               verified={isEmailVerified}
               label={isEmailVerified ? "Email Verified" : "Email Not Verified"}
-            />
-            <VerificationStatus
-              verified={isPhoneVerified}
-              label={isPhoneVerified ? "Phone Verified" : "Phone Not Verified"}
             />
           </div>
           {isActive ? (
@@ -288,28 +262,11 @@ export default function VerificationPage() {
           actionLabel="Send Verification Email"
           disabled={!verification?.userId || isEmailVerified || cooldownSeconds > 0}
           isLoading={loadingMethod === "email"}
-          onAction={() => handleSend("email")}
+          onAction={handleSend}
         >
           <p>{verification?.email || "Loading email address..."}</p>
           {cooldownSeconds > 0 ? (
             <p className="mt-1">You can resend in {cooldownSeconds}s.</p>
-          ) : null}
-        </VerificationCard>
-
-        <VerificationCard
-          Icon={Smartphone}
-          title="Verify by Phone"
-          actionLabel="Send Phone Code"
-          disabled={!verification?.userId || isPhoneVerified || cooldownSeconds > 0}
-          isLoading={loadingMethod === "phone"}
-          onAction={() => handleSend("phone")}
-        >
-          <p>{verification?.phoneNumber || "Loading phone number..."}</p>
-          {verification?.verificationMethod === "phone" &&
-          verification?.verificationCode ? (
-            <p className="mt-2 rounded-[0.9rem] border border-[#CFE0FF] bg-[#F7FAFF] px-3 py-2 font-semibold text-[#18399F]">
-              Phone code: {verification.verificationCode}
-            </p>
           ) : null}
         </VerificationCard>
 
@@ -319,7 +276,7 @@ export default function VerificationPage() {
           className="space-y-4"
         >
           <AuthFormField
-            label={`${codeMethod === "email" ? "Email" : "Phone"} Verification Code*`}
+            label="Email Verification Code*"
             name="otpCode"
             type="text"
             inputMode="numeric"
@@ -336,7 +293,7 @@ export default function VerificationPage() {
             disabled={
               isVerifying ||
               !verification?.userId ||
-              (codeMethod === "email" ? isEmailVerified : isPhoneVerified)
+              isEmailVerified
             }
             className="inline-flex h-14 w-full items-center justify-center gap-3 rounded-full bg-[#18399F] px-6 text-sm font-extrabold uppercase tracking-[0.2em] text-white shadow-[0_18px_32px_rgba(24,57,159,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#102A74] disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-[#6F89D4] disabled:shadow-none"
           >
