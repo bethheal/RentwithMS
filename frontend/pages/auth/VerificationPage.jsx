@@ -70,26 +70,8 @@ function VerificationCard({
   );
 }
 
-function VerificationSuccess() {
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      navigate("/login");
-    }, 5000); // 5 seconds
 
-    return () => clearTimeout(timer);
-  }, [navigate]);
-
-  return (
-    <div>
-      <h2>Email Verified Successfully ✅</h2>
-      <p>Redirecting to login...</p>
-    </div>
-  );
-}
-
-export default VerificationSuccess;
 
 export default function VerificationPage() {
   const [searchParams] = useSearchParams();
@@ -195,43 +177,58 @@ export default function VerificationPage() {
     }
   };
 
-  const handleCodeVerify = async (event) => {
-    event.preventDefault();
+ const handleCodeVerify = async (event) => {
+  event.preventDefault();
 
-    if (!verification?.userId) return;
+  if (!verification?.userId) return;
 
-    if (!/^\d{6}$/.test(otpCode.trim())) {
-      setFormError("Enter the 6-digit verification code.");
+  if (!/^\d{6}$/.test(otpCode.trim())) {
+    setFormError("Enter the 6-digit verification code.");
+    return;
+  }
+
+  try {
+    setIsVerifying(true);
+    setFormError("");
+
+    const verifiedUser = await verifySignup({
+      userId: verification.userId,
+      code: otpCode.trim(),
+    });
+
+    setVerification((current) => ({
+      ...current,
+      emailVerified: verifiedUser.emailVerified,
+      phoneVerified: verifiedUser.phoneVerified,
+      accountStatus: verifiedUser.accountStatus,
+    }));
+
+    setOtpCode("");
+
+    if (verifiedUser.accountStatus === "active") {
+      setNotice("Email verified successfully. Redirecting to login...");
+
+      setTimeout(() => {
+        navigate(
+          buildLoginPath(roleKey, verifiedUser.email),
+          { replace: true }
+        );
+      }, 5000);
+
       return;
     }
 
-    try {
-      setIsVerifying(true);
-      setFormError("");
-      const verifiedUser = await verifySignup({
-        userId: verification.userId,
-        code: otpCode.trim(),
-      });
-      setVerification((current) => ({
-        ...current,
-        emailVerified: verifiedUser.emailVerified,
-        phoneVerified: verifiedUser.phoneVerified,
-        accountStatus: verifiedUser.accountStatus,
-      }));
-      setOtpCode("");
-      if (verifiedUser.accountStatus === "active") {
-        navigate(buildLoginPath(roleKey, verifiedUser.email), { replace: true });
-        return;
-      }
-      setNotice("Email verified. Your status has been updated.");
-    } catch (error) {
-      const message = error.message || "Verification failed.";
-      setFormError(message);
-      showErrorToast(error, "Verification failed.");
-    } finally {
-      setIsVerifying(false);
-    }
-  };
+    setNotice("Email verified. Your status has been updated.");
+
+  } catch (error) {
+    const message = error.message || "Verification failed.";
+    setFormError(message);
+    showErrorToast(error, "Verification failed.");
+
+  } finally {
+    setIsVerifying(false);
+  }
+};
 
   const isEmailVerified = Boolean(verification?.emailVerified);
   const isActive = verification?.accountStatus === "active";
