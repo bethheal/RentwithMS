@@ -70,6 +70,27 @@ function VerificationCard({
   );
 }
 
+function VerificationSuccess() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      navigate("/login");
+    }, 5000); // 5 seconds
+
+    return () => clearTimeout(timer);
+  }, [navigate]);
+
+  return (
+    <div>
+      <h2>Email Verified Successfully ✅</h2>
+      <p>Redirecting to login...</p>
+    </div>
+  );
+}
+
+export default VerificationSuccess;
+
 export default function VerificationPage() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
