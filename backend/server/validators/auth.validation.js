@@ -139,7 +139,7 @@ export const verifySignupSchema = {
   body: z
     .object({
       userId: z.string().uuid('Verification request is invalid.'),
-      code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit verification code.'),
+      code: z.string().trim().optional(),
     })
     .strict(),
 }

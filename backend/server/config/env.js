@@ -52,9 +52,10 @@ const env = {
   CLOUDINARY_CLOUD_NAME: requireEnv('CLOUDINARY_CLOUD_NAME'),
   CLOUDINARY_API_KEY: requireEnv('CLOUDINARY_API_KEY'),
   CLOUDINARY_API_SECRET: requireEnv('CLOUDINARY_API_SECRET'),
-  EMAIL_VERIFICATION_ENABLED: process.env.EMAIL_VERIFICATION_ENABLED !== 'false',
+  // Temporary development bypass: set EMAIL_VERIFICATION_ENABLED=true before production.
+  EMAIL_VERIFICATION_ENABLED: process.env.EMAIL_VERIFICATION_ENABLED === 'true',
   ACCOUNT_ACTIVATION_REQUIREMENT:
-    process.env.EMAIL_VERIFICATION_ENABLED === 'false' ? 'none' : 'email',
+    process.env.EMAIL_VERIFICATION_ENABLED === 'true' ? 'email' : 'none',
   RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
   RESEND_FROM: process.env.RESEND_FROM ?? process.env.MAIL_FROM ?? 'onboarding@resend.dev',
   EMAIL_USER: process.env.EMAIL_USER ?? '',

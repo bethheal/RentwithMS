@@ -410,8 +410,25 @@ export async function verifySignup(payload) {
     where: { id: payload.userId },
   })
 
+  // Temporary development-only bypass. Re-enable EMAIL_VERIFICATION_ENABLED=true before production.
+  if (!env.EMAIL_VERIFICATION_ENABLED) {
+    if (!user) {
+      throw new ApiError(400, 'Verification request is invalid.')
+    }
+
+    if (user.emailVerified && user.accountStatus === 'active') {
+      return user
+    }
+
+    return activateUserWithoutVerification(user)
+  }
+
   if (!user || user.accountStatus !== 'pending_verification') {
     throw new ApiError(400, 'Verification request is invalid or already completed.')
+  }
+
+  if (!/^\d{6}$/.test(String(submittedSecret ?? '').trim())) {
+    throw new ApiError(400, 'Enter the 6-digit verification code.')
   }
 
   if (user.verificationAttempts >= MAX_VERIFICATION_ATTEMPTS) {

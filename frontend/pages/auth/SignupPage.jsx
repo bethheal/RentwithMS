@@ -24,7 +24,7 @@ const initialState = {
 };
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 const isEmailVerificationEnabled =
-  import.meta.env.VITE_EMAIL_VERIFICATION_ENABLED !== "false";
+  import.meta.env.VITE_EMAIL_VERIFICATION_ENABLED === "true";
 
 function getSignupValidationMessage({
   fullName,
@@ -194,9 +194,15 @@ function SignupRoleForm({ roleKey }) {
       });
 
       if (verificationData.verificationRequired === false) {
-        navigate(`/login?role=${roleKey}&email=${encodeURIComponent(formValues.email)}`, {
-          replace: true,
-        });
+        navigate(
+          `${ROUTES.VERIFY_ACCOUNT}?userId=${encodeURIComponent(
+            verificationData.userId,
+          )}&role=${encodeURIComponent(roleKey)}`,
+          {
+            replace: true,
+            state: { verification: verificationData },
+          },
+        );
         return;
       }
 

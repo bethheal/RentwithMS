@@ -8,7 +8,7 @@ import { ROUTES } from "../../routes/routePaths.js";
 import { showErrorToast } from "../../utils/toast.js";
 
 const isEmailVerificationEnabled =
-  import.meta.env.VITE_EMAIL_VERIFICATION_ENABLED !== "false";
+  import.meta.env.VITE_EMAIL_VERIFICATION_ENABLED === "true";
 
 function buildLoginPath(roleKey, email) {
   const params = new URLSearchParams();
@@ -97,12 +97,71 @@ export default function VerificationPage() {
   const [formError, setFormError] = useState("");
   const [loadingMethod, setLoadingMethod] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const [bypassSeconds, setBypassSeconds] = useState(5);
+  const [hasRunBypass, setHasRunBypass] = useState(false);
+  const isDevelopmentBypass =
+    !isEmailVerificationEnabled ||
+    verification?.activationRequirement === "none" ||
+    verification?.verificationRequired === false;
+
+  const completeDevelopmentBypass = async () => {
+    if (!verification?.userId || hasRunBypass) {
+      return;
+    }
+
+    try {
+      setHasRunBypass(true);
+      setIsVerifying(true);
+      setFormError("");
+
+      // Temporary development-only bypass. Re-enable verification before production.
+      const verifiedUser = await verifySignup({
+        userId: verification.userId,
+        code: "",
+      });
+
+      setVerification((current) => ({
+        ...current,
+        emailVerified: true,
+        phoneVerified: verifiedUser.phoneVerified,
+        accountStatus: verifiedUser.accountStatus,
+        email: verifiedUser.email ?? current?.email,
+      }));
+      setNotice("Verification skipped for development. Redirecting to login...");
+    } catch (error) {
+      const message = error.message || "Development verification bypass failed.";
+      setFormError(message);
+      showErrorToast(error, "Development verification bypass failed.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   useEffect(() => {
-    if (!isEmailVerificationEnabled) {
-      navigate(buildLoginPath(roleKey), { replace: true });
+    if (!isDevelopmentBypass || bypassSeconds <= 0) {
+      return undefined;
     }
-  }, [navigate, roleKey]);
+
+    const timerId = window.setTimeout(() => {
+      setBypassSeconds((current) => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timerId);
+  }, [bypassSeconds, isDevelopmentBypass]);
+
+  useEffect(() => {
+    if (isDevelopmentBypass && verification?.userId && !hasRunBypass) {
+      completeDevelopmentBypass();
+    }
+  }, [hasRunBypass, isDevelopmentBypass, verification?.userId]);
+
+  useEffect(() => {
+    if (!isDevelopmentBypass || bypassSeconds > 0) {
+      return;
+    }
+
+    navigate(buildLoginPath(roleKey, verification?.email), { replace: true });
+  }, [bypassSeconds, isDevelopmentBypass, navigate, roleKey, verification?.email]);
 
   useEffect(() => {
     if (cooldownSeconds <= 0) return undefined;
@@ -141,6 +200,11 @@ export default function VerificationPage() {
 
   const handleSend = async () => {
     if (!verification?.userId || cooldownSeconds > 0) return;
+
+    if (isDevelopmentBypass) {
+      await completeDevelopmentBypass();
+      return;
+    }
 
     try {
       setLoadingMethod("email");
@@ -181,6 +245,11 @@ export default function VerificationPage() {
   event.preventDefault();
 
   if (!verification?.userId) return;
+
+  if (isDevelopmentBypass) {
+    await completeDevelopmentBypass();
+    return;
+  }
 
   if (!/^\d{6}$/.test(otpCode.trim())) {
     setFormError("Enter the 6-digit verification code.");
@@ -233,8 +302,69 @@ export default function VerificationPage() {
   const isEmailVerified = Boolean(verification?.emailVerified);
   const isActive = verification?.accountStatus === "active";
 
-  if (!isEmailVerificationEnabled) {
-    return null;
+  if (isDevelopmentBypass) {
+    const progressPercent = ((5 - bypassSeconds) / 5) * 100;
+
+    return (
+      <AuthModeShell
+        backAriaLabel="Back to login"
+        backTo={ROUTES.LOGIN}
+        formId="verification-bypass"
+        googleDisabled
+        googleLabel="Sign up with Google"
+        isGoogleLoading={false}
+        modeLabel="Verification"
+        roleKey={roleKey}
+        roleLabel="Account"
+        submitDisabled
+        submitLabel={null}
+        footer={
+          <p className="text-sm text-slate-500">
+            Ready to continue?{" "}
+            <Link
+              to={buildLoginPath(roleKey, verification?.email)}
+              className="font-semibold text-[#18399F] underline underline-offset-4"
+            >
+              Log in
+            </Link>
+          </p>
+        }
+      >
+        <section
+          id="verification-bypass"
+          className="space-y-5 rounded-[1.25rem] border border-[#CFE0FF] bg-[#F7FAFF] px-4 py-5 text-[#18399F]"
+        >
+          <div className="flex items-start gap-3">
+            <span className="grid size-11 shrink-0 animate-pulse place-items-center rounded-full bg-[#EAF2FF] text-[#18399F]">
+              <CheckCircle2 className="size-5" />
+            </span>
+            <div>
+              <h1 className="font-semibold">Verification skipped</h1>
+              <p className="mt-2 text-sm leading-6 text-[#3656B7]">
+                Development mode is active. Your account is being marked as
+                verified and you will be sent to login in {bypassSeconds}s.
+              </p>
+            </div>
+          </div>
+
+          <div className="h-2 overflow-hidden rounded-full bg-[#D7E2F4]">
+            <div
+              className="h-full rounded-full bg-[#18399F] transition-all duration-1000 ease-linear"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+
+          {formError ? (
+            <p
+              aria-live="polite"
+              className="rounded-[1.1rem] border border-[#F3C9BF] bg-[#FFF4F1] px-4 py-3 text-sm text-[#9A3D2A]"
+            >
+              {formError}
+            </p>
+          ) : null}
+        </section>
+      </AuthModeShell>
+    );
   }
 
   return (
