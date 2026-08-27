@@ -31,6 +31,7 @@ const basePropertyFields = {
     .min(3, 'Location must be at least 3 characters long.')
     .max(255, 'Location must be 255 characters or fewer.'),
   ownerId: optionalOwnerIdSchema,
+  workflowStatus: z.enum(['draft', 'published', 'unpublished']).optional(),
 }
 
 export const createPropertySchema = {

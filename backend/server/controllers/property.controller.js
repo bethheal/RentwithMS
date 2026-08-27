@@ -7,7 +7,9 @@ import {
   getPropertyById,
   listManagedProperties,
   listProperties,
+  publishProperty,
   updateProperty,
+  unpublishProperty,
 } from '../services/property.service.js'
 
 export const getProperties = asyncHandler(async (req, res) => {
@@ -53,6 +55,26 @@ export const updatePropertyListing = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Property updated successfully.',
+    data: serializeProperty(property),
+  })
+})
+
+export const publishPropertyListing = asyncHandler(async (req, res) => {
+  const property = await publishProperty(req.params.id, req.user)
+
+  res.status(200).json({
+    success: true,
+    message: 'Property published successfully.',
+    data: serializeProperty(property),
+  })
+})
+
+export const unpublishPropertyListing = asyncHandler(async (req, res) => {
+  const property = await unpublishProperty(req.params.id, req.user)
+
+  res.status(200).json({
+    success: true,
+    message: 'Property unpublished successfully.',
     data: serializeProperty(property),
   })
 })

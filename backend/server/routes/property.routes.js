@@ -4,8 +4,10 @@ import {
   getMyProperties,
   getProperties,
   getProperty,
+  publishPropertyListing,
   removePropertyImage,
   removePropertyListing,
+  unpublishPropertyListing,
   updatePropertyListing,
 } from '../controllers/property.controller.js'
 import { ROLES } from '../constants/roles.js'
@@ -42,6 +44,20 @@ router.put(
   authorizeRoles(ROLES.ADMIN, ROLES.LANDLORD),
   validateRequest(updatePropertySchema),
   updatePropertyListing
+)
+router.patch(
+  '/:id/publish',
+  authenticate,
+  authorizeRoles(ROLES.ADMIN, ROLES.LANDLORD),
+  validateRequest(propertyIdParamSchema),
+  publishPropertyListing
+)
+router.patch(
+  '/:id/unpublish',
+  authenticate,
+  authorizeRoles(ROLES.ADMIN, ROLES.LANDLORD),
+  validateRequest(propertyIdParamSchema),
+  unpublishPropertyListing
 )
 router.delete(
   '/:id',

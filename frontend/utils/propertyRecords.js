@@ -181,3 +181,38 @@ export function mapManagedPropertyToTenantCard(property) {
     updatedAt: property.updatedAt,
   };
 }
+
+export function mapManagedPropertyToBrowseListing(property) {
+  const [area = "Available", region = ""] = String(
+    property.summary.location || property.draft?.details?.city || ""
+  )
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const houseType =
+    property.draft?.details?.propertyType ||
+    property.draft?.details?.houseType ||
+    "Private";
+
+  return {
+    id: property.id,
+    title: property.summary.title,
+    description: property.summary.description,
+    location: property.summary.location,
+    amount: property.summary.amount,
+    amountValue: property.summary.amountValue,
+    landlordId: property.landlordId,
+    landlordName: property.landlordName,
+    area,
+    region: region || area,
+    houseType,
+    amenities: [...(property.summary.amenities ?? [])],
+    bedrooms: property.summary.bedrooms,
+    bathrooms: property.summary.bathrooms,
+    image: property.summary.image,
+    featured: false,
+    isSaved: false,
+    createdAt: property.publishedAt ?? property.updatedAt ?? property.createdAt,
+    tags: ["Published", houseType].filter(Boolean),
+  };
+}

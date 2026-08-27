@@ -55,6 +55,9 @@ function ensurePropertyManager(property, currentUser) {
 
 export function listProperties() {
   return prisma.property.findMany({
+    where: {
+      workflowStatus: 'published',
+    },
     include: propertyInclude,
     orderBy: {
       createdAt: 'desc',
@@ -79,8 +82,20 @@ export async function listManagedProperties(currentUser) {
   })
 }
 
-export function getPropertyById(propertyId) {
-  return getPropertyOrThrow(propertyId)
+export async function getPropertyById(propertyId) {
+  const property = await prisma.property.findFirst({
+    where: {
+      id: propertyId,
+      workflowStatus: 'published',
+    },
+    include: propertyInclude,
+  })
+
+  if (!property) {
+    throw new ApiError(404, 'Published property not found.')
+  }
+
+  return property
 }
 
 export async function createProperty(propertyData, currentUser) {
@@ -97,6 +112,11 @@ export async function createProperty(propertyData, currentUser) {
       description: propertyData.description.trim(),
       price: propertyData.price,
       location: propertyData.location.trim(),
+      workflowStatus: propertyData.workflowStatus ?? 'published',
+      publishedAt:
+        (propertyData.workflowStatus ?? 'published') === 'published'
+          ? new Date()
+          : null,
       ownerId,
     },
     include: propertyInclude,
@@ -113,6 +133,15 @@ export async function updateProperty(propertyId, propertyData, currentUser) {
     description: propertyData.description?.trim(),
     price: propertyData.price,
     location: propertyData.location?.trim(),
+    workflowStatus: propertyData.workflowStatus,
+  }
+
+  if (propertyData.workflowStatus === 'published') {
+    updates.publishedAt = property.publishedAt ?? new Date()
+  }
+
+  if (['draft', 'unpublished'].includes(propertyData.workflowStatus)) {
+    updates.publishedAt = null
   }
 
   if (currentUser.role === ROLES.ADMIN && propertyData.ownerId) {
@@ -129,6 +158,36 @@ export async function updateProperty(propertyId, propertyData, currentUser) {
   return prisma.property.update({
     where: { id: propertyId },
     data: updates,
+    include: propertyInclude,
+  })
+}
+
+export async function publishProperty(propertyId, currentUser) {
+  const property = await getPropertyOrThrow(propertyId)
+
+  ensurePropertyManager(property, currentUser)
+
+  return prisma.property.update({
+    where: { id: propertyId },
+    data: {
+      workflowStatus: 'published',
+      publishedAt: property.publishedAt ?? new Date(),
+    },
+    include: propertyInclude,
+  })
+}
+
+export async function unpublishProperty(propertyId, currentUser) {
+  const property = await getPropertyOrThrow(propertyId)
+
+  ensurePropertyManager(property, currentUser)
+
+  return prisma.property.update({
+    where: { id: propertyId },
+    data: {
+      workflowStatus: 'unpublished',
+      publishedAt: null,
+    },
     include: propertyInclude,
   })
 }

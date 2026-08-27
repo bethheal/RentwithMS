@@ -19,6 +19,56 @@ enum AccountStatus {
   deleted
 }
 
+enum PropertyWorkflowStatus {
+  draft
+  published
+  unpublished
+}
+
+enum ApplicationStatus {
+  pending
+  approved
+  rejected
+  withdrawn
+}
+
+enum ViewingRequestStatus {
+  pending
+  confirmed
+  declined
+  cancelled
+  rescheduled
+  completed
+}
+
+enum InvoiceStatus {
+  draft
+  issued
+  due
+  paid
+  overdue
+  cancelled
+}
+
+enum PaymentStatus {
+  pending
+  successful
+  failed
+  refunded
+}
+
+enum NotificationType {
+  application_created
+  application_updated
+  viewing_created
+  viewing_updated
+  message_created
+  invoice_created
+  invoice_updated
+  payment_updated
+  general
+}
+
 model User {
   id           String     @id @default(uuid())
   name         String
@@ -42,6 +92,20 @@ model User {
   deactivatedAt DateTime?
   scheduledDeletionDate DateTime?
   properties   Property[] @relation("PropertyOwner")
+  tenantApplications Application[] @relation("ApplicationTenant")
+  landlordApplications Application[] @relation("ApplicationLandlord")
+  tenantViewingRequests ViewingRequest[] @relation("ViewingRequestTenant")
+  landlordViewingRequests ViewingRequest[] @relation("ViewingRequestLandlord")
+  tenantConversations Conversation[] @relation("ConversationTenant")
+  landlordConversations Conversation[] @relation("ConversationLandlord")
+  sentMessages Message[] @relation("MessageSender")
+  tenantTenancies Tenancy[] @relation("TenancyTenant")
+  landlordTenancies Tenancy[] @relation("TenancyLandlord")
+  issuedInvoices Invoice[] @relation("InvoiceLandlord")
+  receivedInvoices Invoice[] @relation("InvoiceTenant")
+  payments Payment[] @relation("PaymentTenant")
+  notifications Notification[] @relation("NotificationRecipient")
+  sentNotifications Notification[] @relation("NotificationActor")
   blogPosts    Blog[]     @relation("BlogAuthor")
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
@@ -59,13 +123,21 @@ model Property {
   description String          @db.Text
   price       Decimal         @db.Decimal(10, 2)
   location    String
+  workflowStatus PropertyWorkflowStatus @default(published)
+  publishedAt DateTime?       @default(now())
   ownerId     String
   owner       User            @relation("PropertyOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   images      PropertyImage[]
+  applications Application[]
+  viewingRequests ViewingRequest[]
+  conversations Conversation[]
+  tenancies Tenancy[]
+  invoices Invoice[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
   @@index([ownerId])
+  @@index([workflowStatus])
   @@index([createdAt])
 }
 
@@ -92,5 +164,186 @@ model Blog {
   updatedAt     DateTime @updatedAt
 
   @@index([authorId])
+  @@index([createdAt])
+}
+
+model Application {
+  id             String            @id @default(uuid())
+  propertyId     String
+  property       Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenantId       String
+  tenant         User              @relation("ApplicationTenant", fields: [tenantId], references: [id], onDelete: Restrict)
+  landlordId     String
+  landlord       User              @relation("ApplicationLandlord", fields: [landlordId], references: [id], onDelete: Restrict)
+  moveInDate     DateTime?
+  message        String?           @db.Text
+  personalDetails Json?
+  employment     Json?
+  rentalHistory  String?           @db.Text
+  documents      Json?
+  details        Json?
+  status         ApplicationStatus @default(pending)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([propertyId])
+  @@index([tenantId])
+  @@index([landlordId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ViewingRequest {
+  id                String               @id @default(uuid())
+  propertyId        String
+  property          Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenantId          String
+  tenant            User                 @relation("ViewingRequestTenant", fields: [tenantId], references: [id], onDelete: Restrict)
+  landlordId        String
+  landlord          User                 @relation("ViewingRequestLandlord", fields: [landlordId], references: [id], onDelete: Restrict)
+  preferredDateTime DateTime
+  scheduledDateTime DateTime?
+  response          String?              @db.Text
+  notes             String?              @db.Text
+  contactPhone      String?
+  contactEmail      String?
+  status            ViewingRequestStatus @default(pending)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([propertyId])
+  @@index([tenantId])
+  @@index([landlordId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Conversation {
+  id         String    @id @default(uuid())
+  tenantId   String
+  tenant     User      @relation("ConversationTenant", fields: [tenantId], references: [id], onDelete: Restrict)
+  landlordId String
+  landlord   User      @relation("ConversationLandlord", fields: [landlordId], references: [id], onDelete: Restrict)
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  tenancyId  String?
+  tenancy    Tenancy?  @relation(fields: [tenancyId], references: [id], onDelete: SetNull)
+  topic      String?
+  messages   Message[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([landlordId])
+  @@index([propertyId])
+  @@index([tenancyId])
+  @@index([updatedAt])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Restrict)
+  body           String       @db.Text
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model Tenancy {
+  id            String         @id @default(uuid())
+  propertyId    String
+  property      Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenantId      String
+  tenant        User           @relation("TenancyTenant", fields: [tenantId], references: [id], onDelete: Restrict)
+  landlordId    String
+  landlord      User           @relation("TenancyLandlord", fields: [landlordId], references: [id], onDelete: Restrict)
+  unit          String?
+  startDate     DateTime?
+  endDate       DateTime?
+  rentAmount    Decimal?       @db.Decimal(10, 2)
+  status        String         @default("active")
+  invoices      Invoice[]
+  conversations Conversation[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([propertyId])
+  @@index([tenantId])
+  @@index([landlordId])
+  @@index([status])
+}
+
+model Invoice {
+  id                 String        @id @default(uuid())
+  landlordId         String
+  landlord           User          @relation("InvoiceLandlord", fields: [landlordId], references: [id], onDelete: Restrict)
+  tenantId           String
+  tenant             User          @relation("InvoiceTenant", fields: [tenantId], references: [id], onDelete: Restrict)
+  propertyId         String?
+  property           Property?     @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  tenancyId          String?
+  tenancy            Tenancy?      @relation(fields: [tenancyId], references: [id], onDelete: SetNull)
+  amount             Decimal       @db.Decimal(10, 2)
+  description        String        @db.Text
+  dueDate            DateTime
+  status             InvoiceStatus @default(issued)
+  paymentInformation Json?
+  history            Json?
+  payments           Payment[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([landlordId])
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([tenancyId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  invoiceId     String
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  tenantId      String
+  tenant        User          @relation("PaymentTenant", fields: [tenantId], references: [id], onDelete: Restrict)
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentMethod String?
+  transactionId String?
+  status        PaymentStatus @default(pending)
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([invoiceId])
+  @@index([tenantId])
+  @@index([status])
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  recipientId String
+  recipient   User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId     String?
+  actor       User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  type        NotificationType @default(general)
+  title       String
+  body        String           @db.Text
+  entityType  String?
+  entityId    String?
+  data        Json?
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+
+  @@index([recipientId])
+  @@index([actorId])
+  @@index([type])
+  @@index([entityType, entityId])
   @@index([createdAt])
 }

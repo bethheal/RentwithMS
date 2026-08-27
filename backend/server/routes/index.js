@@ -3,9 +3,15 @@ import { checkDatabaseConnection } from '../config/prisma.js'
 import { sendTestEmail } from '../services/mailService.js'
 import authRoutes from './auth.routes.js'
 import blogRoutes from './blog.routes.js'
+import applicationRoutes from './application.routes.js'
+import conversationRoutes from './conversation.routes.js'
+import dashboardRoutes from './dashboard.routes.js'
+import invoiceRoutes from './invoice.routes.js'
+import notificationRoutes from './notification.routes.js'
 import propertyRoutes from './property.routes.js'
 import uploadRoutes from './upload.routes.js'
 import userRoutes from './user.routes.js'
+import viewingRequestRoutes from './viewingRequest.routes.js'
 
 const router = Router()
 
@@ -72,6 +78,12 @@ router.get('/test-email', async (req, res) => {
 router.use('/auth', authRoutes)
 router.use('/users', userRoutes)
 router.use('/properties', propertyRoutes)
+router.use('/applications', applicationRoutes)
+router.use('/viewing-requests', viewingRequestRoutes)
+router.use('/conversations', conversationRoutes)
+router.use('/invoices', invoiceRoutes)
+router.use('/notifications', notificationRoutes)
+router.use('/dashboard', dashboardRoutes)
 router.use('/uploads', uploadRoutes)
 router.use('/blogs', blogRoutes)
 

@@ -48,6 +48,7 @@ import {
 } from "../../utils/toast.js";
 import {
   isPropertyVisibleToTenant,
+  mapManagedPropertyToBrowseListing,
   mapManagedPropertyToTenantCard,
 } from "../../utils/propertyRecords.js";
 import {
@@ -824,7 +825,7 @@ export default function TenantDashboardView() {
     filters,
     helpCenter,
     issueReports: initialIssueReports,
-    listings,
+    listings: initialListings,
     navSections,
     receipts: initialReceipts,
     rentHistory: initialRentHistory,
@@ -882,6 +883,18 @@ export default function TenantDashboardView() {
   const [sortOption, setSortOption] = useState("newest");
   const [savedSortOption, setSavedSortOption] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
+  const publishedManagedListings = managedProperties
+    .filter((property) => property.workflowStatus === "published")
+    .map((property) => mapManagedPropertyToBrowseListing(property));
+  const listings = [
+    ...publishedManagedListings,
+    ...initialListings.filter(
+      (listing) =>
+        !publishedManagedListings.some(
+          (managedListing) => managedListing.id === listing.id
+        )
+    ),
+  ];
   const [browsePagination, setBrowsePagination] = useState({
     count: listingsPageSize,
     key: "",
@@ -2491,7 +2504,7 @@ export default function TenantDashboardView() {
                       listing={listing}
                       isSaved={isListingSaved(listing.id)}
                       isVerifiedLandlord={Boolean(landlord)}
-                      landlordName={landlord?.name ?? ""}
+                      landlordName={landlord?.name ?? listing.landlordName ?? ""}
                       onContact={() => openRequestModal(listing, "contact")}
                       onRequestViewing={() => openRequestModal(listing, "viewing")}
                       onToggleSave={() => handleToggleSave(listing)}
@@ -2665,7 +2678,7 @@ export default function TenantDashboardView() {
                     listing={listing}
                     isSaved
                     isVerifiedLandlord={Boolean(landlord)}
-                    landlordName={landlord?.name ?? ""}
+                    landlordName={landlord?.name ?? listing.landlordName ?? ""}
                     onContact={() => openRequestModal(listing, "contact")}
                     onRequestViewing={() => openRequestModal(listing, "viewing")}
                     onToggleSave={() => handleToggleSave(listing)}

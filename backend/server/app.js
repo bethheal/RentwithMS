@@ -16,6 +16,7 @@ const distDirectory = path.join(projectRoot, "dist");
 const distIndexFile = path.join(distDirectory, "index.html");
 
 const allowedOrigins = env.CLIENT_ORIGINS;
+console.log("Allowed CORS origins:", allowedOrigins);
 
 export function createApp() {
   const app = express();
