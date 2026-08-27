@@ -44,7 +44,6 @@ const env = {
   NODE_ENV: process.env.NODE_ENV ?? 'development',
   PORT: Number.isNaN(parsedPort) ? 5000 : parsedPort,
   DATABASE_URL: requireEnv('DATABASE_URL'),
-  CLIENT_ORIGIN: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
   CLIENT_ORIGINS: clientOrigins,
   JWT_SECRET: requireEnv('JWT_SECRET'),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN ?? '7d',
